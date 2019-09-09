@@ -1,0 +1,8 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Input data
+data/
+
+# Experimental results
+results/

@@ -15,6 +15,10 @@ def download_decagon_data(dir_path='./data/'):
 	wget http://snap.stanford.edu/decagon/bio-decagon-combo.tar.gz;
 	tar -xvzf bio-decagon-combo.tar.gz;
 
+	bio-decagon-combo.csv which has the form
+	drug_CID, drug_CID, side_effect_id, side_effect_name
+	( == CIDXXXXX,CIDXXXX,CXXXX,side_effect_name).
+
 	Step 1: Collect drug cid list in drug_raw_feat.idx.jsonl, which has the form
 		CIDXXXX : { "atoms": [
 						{"aid": x, "number": x, "x": x, "y": x}

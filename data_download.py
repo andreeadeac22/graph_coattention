@@ -30,9 +30,12 @@ def download_decagon_data(dir_path='./data/'):
                         ... ]
                     }
     where
-        aid is the atom ID within the owning Compound (molecule)
-        number is the atomic number for this atom
-        x,y are the coordinates
+        atom.aid is the atom ID within the owning Compound (molecule)
+        atom.number is the atomic number for this atom
+        atom.x, atom.y are the coordinates
+
+        bond.aid1, bond.aid2 are the begin and end atom of the bond
+        bond.order is the (chemical) bond order
     For more details
         https://pubchempy.readthedocs.io/en/latest/api.html#pubchempy.Atom
     """

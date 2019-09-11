@@ -29,6 +29,12 @@ def download_decagon_data(dir_path='./data/'):
                         {"aid1": x, "aid2": x, "order": x}
                         ... ]
                     }
+    where
+        aid is the atom ID within the owning Compound (molecule)
+        number is the atomic number for this atom
+        x,y are the coordinates
+    For more details
+        https://pubchempy.readthedocs.io/en/latest/api.html#pubchempy.Atom
     """
     prepare_data_dir(dir_path)
 

@@ -1,6 +1,6 @@
 """
-	Downloading QM9/ DECAGON data to path (set by default to be "./data/")
-	command: python data_download QM9 DECAGON
+	Downloading QM9/ DECAGON data to args.path (set by default to be "./data/")
+	command: python data_download QM9 DECAGON -p path
 """
 import argparse
 import os
@@ -15,7 +15,14 @@ def download_decagon_data(dir_path='./data/'):
 	wget http://snap.stanford.edu/decagon/bio-decagon-combo.tar.gz;
 	tar -xvzf bio-decagon-combo.tar.gz;
 
-	Step 1: Collect drug cid list
+	Step 1: Collect drug cid list in drug_raw_feat.idx.jsonl, which has the form
+		CIDXXXX : { "atoms": [
+						{"aid": x, "number": x, "x": x, "y": x}
+						... ]
+					"bonds": [
+						{"aid1": x, "aid2": x, "order": x}
+						... ]
+					}
 	"""
 	prepare_data_dir(dir_path)
 
@@ -34,9 +41,6 @@ def download_decagon_data(dir_path='./data/'):
 	print('Unique drug count =', len(drug_idx))
 
 	# # Step 2: Search on PubChem
-
-	# In[27]:
-
 	from tqdm import tqdm_notebook
 	import pubchempy as pcp
 	# Use int type cid to search with PubChemPy
@@ -44,8 +48,6 @@ def download_decagon_data(dir_path='./data/'):
 			 for cid in tqdm_notebook(drug_idx)}
 
 	# # Step 3: Write to file
-
-	# In[29]:
 	import json
 	with open(dir_path + 'drug_raw_feat.idx.jsonl', 'w') as f:
 		for cid, drug in drugs.items():
@@ -127,7 +129,7 @@ def main():
 		download_qm9_data(args.path)
 
 	if 'decagon' in args.datasets:
-		download_decagon_data()
+		download_decagon_data(args.path)
 
 
 if __name__ == "__main__":

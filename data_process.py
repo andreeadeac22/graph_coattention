@@ -35,8 +35,7 @@ def preprocess_decagon(dir_path='./data/'):
         for b in molecule['bonds']:
             for aid_pair in [(b['aid1'], b['aid2']),
                              (b['aid2'], b['aid1'])]:
-                pair_info = '{}-{}'.format(b['order'], b.get('style', 0))
-                bonds[aid_pair] = pair_info
+                bonds[aid_pair] = '{}-{}'.format(b['order'], b.get('style', 0))
 
         print("bonds ", bonds)
 
@@ -54,9 +53,6 @@ def preprocess_decagon(dir_path='./data/'):
             for (b_aid1, b_aid2), b in bonds.items():
                 if aid == b_aid1:
                     atom_vect.append((b_aid2, b))
-
-            #atom_vect = [(b_aid2, b) for (b_aid1, b_aid2), b in bonds.items()
-            #      if aid == b_aid1]
             new_bonds[aid] = list(atom_vect)
         bonds = new_bonds
 
@@ -77,18 +73,29 @@ def preprocess_decagon(dir_path='./data/'):
         assert all([0 == a.get('charge', 0) for a in atoms.values() if a['number'] == 1])
 
         # Remove Hydrogen and use position as new aid
-        atoms_wo_h_new_aid = {
-            aid: {**a, 'charge': a.get('charge', 0),
-                  'n_hydro': h_count_dict.get(aid, 0), 'aid': idx}
-            for idx, (aid, a) in enumerate(
-            [(aid, a) for aid, a in atoms.items() if a['number'] > 1])}
+        atoms_wo_h_new_aid = {}
+        for idx, (aid, a) in enumerate(
+            [(aid, a) for aid, a in atoms.items() if a['number'] > 1]):
+            atoms_wo_h_new_aid[aid] = {
+                **a,
+                'charge': a.get('charge', 0),
+                'n_hydro': h_count_dict.get(aid, 0),
+                'aid': idx
+            }
 
         # Update with new aid
-        bonds_wo_h_new_aid = {
-            atoms_wo_h_new_aid[aid1]['aid']: [(atoms_wo_h_new_aid[aid2]['aid'], b)
-                                              for aid2, b in bs if aid2 not in h_aid_set]
-            for aid1, bs in bonds.items() if aid1 not in h_aid_set}
+        bonds_wo_h_new_aid = {}
+        for aid1, bs in bonds.items():
+            if aid1 not in h_aid_set:
+                bonds_wo_h_new_aid[atoms_wo_h_new_aid[aid1]['aid']] =\
+                    [(atoms_wo_h_new_aid[aid2]['aid'], b)
+                    for aid2, b in bs if aid2 not in h_aid_set]
 
+        atoms_wo_h_new_aid_w_bond = []
+        for a in sorted(atoms_wo_h_new_aid.values(), key=lambda x: x['aid']):
+            atoms_wo_h_new_aid_w_bond.append(
+	            {**a, 'nbr': bonds_wo_h_new_aid[a['aid']]}
+            )
         atoms_wo_h_new_aid_w_bond = [  # note the dict key (old aid) is deprecated here.
             {**a, 'nbr': bonds_wo_h_new_aid[a['aid']]}
             for a in sorted(atoms_wo_h_new_aid.values(), key=lambda x: x['aid'])]

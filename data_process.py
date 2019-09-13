@@ -5,6 +5,12 @@
 import argparse
 import json
 import networkx as nx
+import numpy as np
+import random
+
+from rdkit import Chem
+from rdkit.Chem import ChemicalFeatures
+from rdkit import RDConfig
 from utils.file_utils import *
 
 
@@ -36,8 +42,6 @@ def preprocess_decagon(dir_path='./data/'):
             for aid_pair in [(b['aid1'], b['aid2']),
                              (b['aid2'], b['aid1'])]:
                 bonds[aid_pair] = '{}-{}'.format(b['order'], b.get('style', 0))
-
-        print("bonds ", bonds)
 
         if self_loop:
             # Add self loops to the set of existing bonds
@@ -74,6 +78,8 @@ def preprocess_decagon(dir_path='./data/'):
 
         # Remove Hydrogen and use position as new aid
         atoms_wo_h_new_aid = {}
+        # maps from non-hydrogen atoms 'old aid' to
+        # a record with features + new aid
         for idx, (aid, a) in enumerate(
             [(aid, a) for aid, a in atoms.items() if a['number'] > 1]):
             atoms_wo_h_new_aid[aid] = {
@@ -94,11 +100,9 @@ def preprocess_decagon(dir_path='./data/'):
         atoms_wo_h_new_aid_w_bond = []
         for a in sorted(atoms_wo_h_new_aid.values(), key=lambda x: x['aid']):
             atoms_wo_h_new_aid_w_bond.append(
-	            {**a, 'nbr': bonds_wo_h_new_aid[a['aid']]}
-            )
-        atoms_wo_h_new_aid_w_bond = [  # note the dict key (old aid) is deprecated here.
-            {**a, 'nbr': bonds_wo_h_new_aid[a['aid']]}
-            for a in sorted(atoms_wo_h_new_aid.values(), key=lambda x: x['aid'])]
+                # adding the neighbour list to the record information
+                {**a, 'nbr': bonds_wo_h_new_aid[a['aid']]})
+
         assert all(i == a['aid'] for i, a in enumerate(atoms_wo_h_new_aid_w_bond))
 
         return atoms_wo_h_new_aid_w_bond
@@ -106,11 +110,7 @@ def preprocess_decagon(dir_path='./data/'):
     drug_structure_dict = {cid: collate_molecule(d, self_loop=True)
                            for cid, d in raw_drugs.items()}
 
-    with open(dir_path + 'intermediate_drug_feat.idx.jsonl', 'w') as f:
-        for cid, drug in drug_structure_dict.items():
-            #drug = drug.to_dict(properties=['atoms', 'bonds'])
-            f.write('{}\t{}\n'.format(cid, json.dumps(drug)))
-
+    #set of bond types (order-style or self)
     bond_types = {b for d in drug_structure_dict.values()
                   for a in d for _, b in a['nbr']}
     bond_type_idx = {b: i for i, b in enumerate(bond_types)}
@@ -126,11 +126,14 @@ def preprocess_decagon(dir_path='./data/'):
         bond_idx_j = []
 
         for i, atom in enumerate(molecule):
-            print(molecule)
             aid = atom['aid']
-            print(i)
             assert aid == i
 
+            # atom['nbr'] is of form [(id, bond.order-bond.style)]
+            # *atom['nbr'] takes each pair and considers it as a different input
+            # zip(*atom['nbr']) build
+            # iterator over ids (id1, id2, ...)
+            # and iterator over bond info ( bond-order-bond.style1, ...)
             nbr_ids, nbr_bonds = zip(*atom['nbr'])
             assert len(set(nbr_ids)) == len(nbr_ids), 'Multi-graph is not supported.'
 
@@ -145,6 +148,7 @@ def preprocess_decagon(dir_path='./data/'):
             bond_type += nbr_bonds
 
             # Follow aid
+            # list with i repeated x times (x is how many bonds i has)
             bond_seg_i += [aid] * len(nbr_ids)
             bond_idx_j += nbr_ids
 
@@ -167,8 +171,104 @@ def preprocess_decagon(dir_path='./data/'):
         f.write(json.dumps(bond_type_idx))
 
 
-def preprocess_qm9():
-    print("Not implemented")
+def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
+    # Initialization of graph for QM9
+    def init_graph(prop):
+        prop = prop.split()
+        g_tag = prop[0]
+        g_index = int(prop[1])
+        g_A = float(prop[2])
+        g_B = float(prop[3])
+        g_C = float(prop[4])
+        g_mu = float(prop[5])
+        g_alpha = float(prop[6])
+        g_homo = float(prop[7])
+        g_lumo = float(prop[8])
+        g_gap = float(prop[9])
+        g_r2 = float(prop[10])
+        g_zpve = float(prop[11])
+        g_U0 = float(prop[12])
+        g_U = float(prop[13])
+        g_H = float(prop[14])
+        g_G = float(prop[15])
+        g_Cv = float(prop[16])
+
+        labels = [g_mu, g_alpha, g_homo, g_lumo, g_gap, g_r2, g_zpve, g_U0, g_U, g_H, g_G, g_Cv]
+        return nx.Graph(tag=g_tag, index=g_index, A=g_A, B=g_B, C=g_C, mu=g_mu, alpha=g_alpha, homo=g_homo,
+                        lumo=g_lumo, gap=g_gap, r2=g_r2, zpve=g_zpve, U0=g_U0, U=g_U, H=g_H, G=g_G, Cv=g_Cv), labels
+
+    # XYZ file reader for QM9 dataset
+    def xyz_graph_reader(graph_file):
+        with open(graph_file, 'r') as f:
+            # Number of atoms
+            na = int(f.readline())
+            print("na", na)
+
+            # Graph properties
+            properties = f.readline()
+            print("properties", properties)
+            g, l = init_graph(properties)
+
+            atom_properties = []
+            # Atoms properties
+            for i in range(na):
+                a_properties = f.readline()
+                a_properties = a_properties.replace('.*^', 'e')
+                a_properties = a_properties.replace('*^', 'e')
+                a_properties = a_properties.split()
+                atom_properties.append(a_properties)
+
+            # Frequencies
+            f.readline()
+
+            # SMILES
+            smiles = f.readline()
+            smiles = smiles.split()
+            smiles = smiles[0]
+
+            m = Chem.MolFromSmiles(smiles)
+            m = Chem.AddHs(m)
+
+            fdef_name = os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef')
+            factory = ChemicalFeatures.BuildFeatureFactory(fdef_name)
+            feats = factory.GetFeaturesForMol(m)
+
+            # Create nodes
+            for i in range(0, m.GetNumAtoms()):
+                atom_i = m.GetAtomWithIdx(i)
+
+                g.add_node(i, a_type=atom_i.GetSymbol(), a_num=atom_i.GetAtomicNum(), acceptor=0, donor=0,
+                           aromatic=atom_i.GetIsAromatic(), hybridization=atom_i.GetHybridization(),
+                           num_h=atom_i.GetTotalNumHs(), coord=np.array(atom_properties[i][1:4]).astype(np.float),
+                           pc=float(atom_properties[i][4]))
+
+                for i in range(0, len(feats)):
+                    if feats[i].GetFamily() == 'Donor':
+                        node_list = feats[i].GetAtomIds()
+                        for i in node_list:
+                            g.node[i]['donor'] = 1
+                    elif feats[i].GetFamily() == 'Acceptor':
+                        node_list = feats[i].GetAtomIds()
+                        for i in node_list:
+                            g.node[i]['acceptor'] = 1
+
+                # Read Edges
+                for i in range(0, m.GetNumAtoms()):
+                    for j in range(0, m.GetNumAtoms()):
+                        e_ij = m.GetBondBetweenAtoms(i, j)
+                        if e_ij is not None:
+                            g.add_edge(i, j, b_type=e_ij.GetBondType(),
+                                       distance=np.linalg.norm(g.node[i]['coord'] - g.node[j]['coord']))
+                        else:
+                            # Unbonded
+                            g.add_edge(i, j, b_type=None,
+                                       distance=np.linalg.norm(g.node[i]['coord'] - g.node[j]['coord']))
+            return g, l
+
+    files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+    file = files[0]
+    print(file)
+    g, target = xyz_graph_reader(os.path.join(dir_path, file))
     return
 
 
@@ -193,7 +293,7 @@ def main():
     prepare_data_dir(args.path)
 
     if 'qm9' in args.datasets:
-        preprocess_qm9(args.path)
+        preprocess_qm9()
 
     if 'decagon' in args.datasets:
         preprocess_decagon(args.path)

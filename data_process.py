@@ -227,6 +227,9 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
             smiles = smiles[0]
 
             m = Chem.MolFromSmiles(smiles)
+
+            
+
             m = Chem.AddHs(m)
 
             fdef_name = os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef')

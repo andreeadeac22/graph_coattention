@@ -56,7 +56,7 @@ def preprocess_decagon(dir_path='./data/'):
 			atom_vect = []
 			for (b_aid1, b_aid2), b in bonds.items():
 				if aid == b_aid1:
-					atom_vect.append((b_aid2, b))
+					atom_vect += [(b_aid2, b)]
 			new_bonds[aid] = list(atom_vect)
 		bonds = new_bonds
 
@@ -99,9 +99,9 @@ def preprocess_decagon(dir_path='./data/'):
 
 		atoms_wo_h_new_aid_w_bond = []
 		for a in sorted(atoms_wo_h_new_aid.values(), key=lambda x: x['aid']):
-			atoms_wo_h_new_aid_w_bond.append(
+			atoms_wo_h_new_aid_w_bond += [
 				# adding the neighbour list to the record information
-				{**a, 'nbr': bonds_wo_h_new_aid[a['aid']]})
+				{**a, 'nbr': bonds_wo_h_new_aid[a['aid']]}]
 
 		assert all(i == a['aid'] for i, a in enumerate(atoms_wo_h_new_aid_w_bond))
 
@@ -218,8 +218,13 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			"G": g_G,
 			"Cv": g_Cv}, labels
 
+	def get_bond_type_idx(bond_type):
+		if bond_type == 1.5:
+			return 4
+		return int(bond_type)
+
 	# XYZ file reader for QM9 dataset
-	def xyz_graph_reader(graph_file):
+	def xyz_graph_reader(graph_file, self_loop = True):
 		with open(graph_file, 'r') as f:
 			mol_representation = {
 				'n_atom': None,
@@ -271,18 +276,20 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			bond_type = []
 			bond_seg_i = []
 			bond_idx_j = []
+			# distances between atoms
+			bond_dist = []
 
 			# Create nodes
 			for i in range(0, m.GetNumAtoms()):
 				atom_i = m.GetAtomWithIdx(i)
 
-				atom_type.append(atom_i.GetAtomicNum())
-				atom_feat.append((atom_i.GetAtomicNum(), atom_i.GetTotalNumHs(),atom_i.GetFormalCharge()))
-				atom_feat_dicts.append({
+				atom_type += [atom_i.GetAtomicNum()]
+				atom_feat += [(atom_i.GetAtomicNum(), atom_i.GetTotalNumHs(),atom_i.GetFormalCharge())]
+				atom_feat_dicts += [{
 					'number' : atom_i.GetAtomicNum(),
 					'n_hydro': atom_i.GetTotalNumHs(),
 					'charge': atom_i.GetFormalCharge(),
-					'coord': np.array(atom_properties[i][1:4]).astype(np.float)})
+					'coord': np.array(atom_properties[i][1:4]).astype(np.float)}]
 
 				# TODO: should use the other features too?
 				# For example, coordinates, hybridization, aromatic
@@ -303,17 +310,21 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 							g.node[i]['acceptor'] = 1
 				"""
 
-				# Read Edges
-				for i in range(0, m.GetNumAtoms()):
-					for j in range(0, m.GetNumAtoms()):
-						e_ij = m.GetBondBetweenAtoms(i, j)
-						if e_ij is not None:
-							g.add_edge(i, j, b_type=e_ij.GetBondType(),
-									   distance=np.linalg.norm(g.node[i]['coord'] - g.node[j]['coord']))
-						else:
-							# Unbonded
-							g.add_edge(i, j, b_type=None,
-									   distance=np.linalg.norm(g.node[i]['coord'] - g.node[j]['coord']))
+			# Read Edges
+			for i in range(0, m.GetNumAtoms()):
+				for j in range(0, m.GetNumAtoms()):
+					e_ij = m.GetBondBetweenAtoms(i, j)
+					if e_ij is not None:
+						bond_type += [get_bond_type_idx(e_ij.GetBondTypeAsDouble())]
+						bond_seg_i += [i]
+						bond_idx_j += [j]
+						bond_dist += [np.linalg.norm(atom_feat_dicts[i]['coord'] - atom_feat_dicts[j]['coord'])]
+				if self_loop:
+					#add self edge as type 0
+					bond_type += [0]
+					bond_seg_i += [i]
+					bond_idx_j += [i]
+					bond_dist += [0.]
 
 			mol_representation['n_atom'] = n_atom
 			mol_representation['atom_type'] = atom_type
@@ -322,12 +333,13 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			mol_representation['bond_seg_i'] = bond_seg_i
 			mol_representation['bond_idx_j'] = bond_idx_j
 
+			print(mol_representation)
 			return mol_tag, mol_representation, labels
 
 	files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
 	file = files[0]
 	print(file)
-	g, target = xyz_graph_reader(os.path.join(dir_path, file))
+	mol_tag, mol_representation, labels = xyz_graph_reader(os.path.join(dir_path, file))
 	return
 
 

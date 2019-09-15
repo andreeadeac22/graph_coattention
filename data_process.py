@@ -219,6 +219,10 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			"Cv": g_Cv}, labels
 
 	def get_bond_type_idx(bond_type):
+		# There are 4 types of bonds in QM9
+		# 1 - single, 2 - double, 3 - triple
+		# 4 (originally 2.5) - aromatic
+		# 0 - self
 		if bond_type == 1.5:
 			return 4
 		return int(bond_type)
@@ -240,9 +244,8 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 
 			# Graph properties
 			properties = f.readline()
-			print("properties", properties)
 			prop_dict, labels = extract_graph_properties(properties)
-			mol_tag = prop_dict['tag']
+			mol_idx = prop_dict['index']
 
 			atom_properties = []
 			# Atoms properties
@@ -333,14 +336,18 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			mol_representation['bond_seg_i'] = bond_seg_i
 			mol_representation['bond_idx_j'] = bond_idx_j
 
-			print(mol_representation)
-			return mol_tag, mol_representation, labels
+			return mol_idx, mol_representation, labels
 
+	# # Write to jsonl file
 	files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-	file = files[0]
-	print(file)
-	mol_tag, mol_representation, labels = xyz_graph_reader(os.path.join(dir_path, file))
-	return
+	with open(dir_path + 'drug.feat.self_loop.idx.jsonl', 'w') as f:
+		with open(dir_path + 'drug.labels.jsonl', 'w')  as g:
+			for file in files:
+				if ".xyz" in file:
+					print(file)
+					mol_idx, mol_representation, labels = xyz_graph_reader(os.path.join(dir_path, file))
+					f.write('{}\t{}\n'.format(mol_idx, json.dumps(mol_representation)))
+					g.write('{}\t{}\n'.format(mol_idx, json.dumps(labels)))
 
 
 def main():

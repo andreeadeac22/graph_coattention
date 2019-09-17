@@ -106,9 +106,11 @@ def main():
 						help="path to store the data (default ./data/)")
 
 	parser.add_argument('--ddi_data', default='bio-decagon-combo.csv')
+	parser.add_argument('--qm9_labels', default='drug.labels.jsonl')
 
-	#TODO: modify
-	parser.add_argument('--drug_data', default='drug.feat.wo_h.self_loop.idx.jsonl')
+	parser.add_argument('--graph_data', default=None,
+	                    help="Graph features input file name, "
+						"e.g. drug.feat.wo_h.self_loop.idx.jsonl")
 	parser.add_argument('-n_fold', default=10, type=int)
 	parser.add_argument('--debug', action='store_true')
 	opt = parser.parse_args()
@@ -123,6 +125,48 @@ def main():
 
 	print('Dump to file:', file_name)
 	np.save(file_name, opt)
+
+
+	pos_cv_dataset = split_all_cross_validation_datasets(pos_datasets, opt.n_fold)
+	neg_cv_dataset = split_all_cross_validation_datasets(neg_datasets, opt.n_fold)
+
+	cv_dataset = {'pos': pos_cv_dataset, 'neg': neg_cv_dataset}
+	with open('cv_data.txt', 'wb') as cv_file:
+		cv_file.write(pickle.dumps(cv_dataset))
+
+	print("len(pos_datasets)", len(pos_cv_dataset))
+	print("len(neg_datasets)", len(neg_cv_dataset))
+
+	def split_all_cross_validation_se_dataset(data, n_fold, fold_i):
+		fold_len = len(data) // n_fold
+
+		test_idx_start = (fold_i - 1) * fold_len
+		if fold_i < n_fold:
+			test_idx_end = fold_i * fold_len
+		else:
+			test_idx_end = len(data)
+
+
+		data_test = data[test_idx_start:test_idx_end]
+
+		data_rest = data[:test_idx_start] + data[test_idx_end:]
+		random.shuffle(data_rest)
+		data_valid = data_rest[:fold_len]
+		data_train = data_rest[fold_len:]
+		return data_train, data_valid, data_test
+
+	def split_all_cross_validation_datasets(datasets, n_fold):
+		cv_dataset = \
+			{x: {'train': {}, 'valid': {}, 'test': {}} for x in range(1, n_fold + 1)}
+
+		for se in datasets:
+			for fold_i in range(1, n_fold + 1):
+				data_train, data_valid, data_test = \
+					split_all_cross_validation_se_dataset(datasets[se], n_fold, fold_i)
+				cv_dataset[fold_i]['train'][se] = data_train
+				cv_dataset[fold_i]['valid'][se] = data_valid
+				cv_dataset[fold_i]['test'][se] = data_test
+		return cv_dataset
 
 
 if __name__ == '__main__':

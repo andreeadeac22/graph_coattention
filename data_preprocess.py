@@ -138,8 +138,6 @@ def preprocess_decagon(dir_path='./data/'):
 			nbr_ids, nbr_bonds = zip(*atom['nbr'])
 			assert len(set(nbr_ids)) == len(nbr_ids), 'Multi-graph is not supported.'
 
-			print("nbr_bonds", nbr_bonds)
-			print("bond_type_idx.get", bond_type_idx.get)
 			if bond_type_idx:
 				nbr_bonds = list(map(bond_type_idx.get, nbr_bonds))
 
@@ -149,7 +147,6 @@ def preprocess_decagon(dir_path='./data/'):
 
 			# Follow position i
 			bond_type += nbr_bonds
-			print("bond_type", bond_type)
 
 			# Follow aid
 			# list with i repeated x times (x is how many bonds i has)

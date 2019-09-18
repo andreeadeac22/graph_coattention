@@ -5,6 +5,7 @@ import argparse
 import numpy as np
 import csv
 import random
+import pickle
 
 import ujson as json
 from tqdm import tqdm
@@ -16,7 +17,7 @@ def read_graph_structure(drug_feat_idx_jsonl):
 	return drugs
 
 
-def prepare_decagon_cv_files(opt):
+def prepare_decagon_cv(opt):
 	def read_ddi_instances(ddi_csv, threshold=498, use_small_dataset=False):
 		# Building side-effect dictionary and
 		# keeping only those which appear more than threshold (498) times.
@@ -53,7 +54,6 @@ def prepare_decagon_cv_files(opt):
 			random.shuffle(neg_se_ddp)
 			pos_datasets[se] = pos_se_ddp
 			neg_datasets[se] = neg_se_ddp
-
 		return pos_datasets, neg_datasets
 
 	def create_negative_instances(drug_idx_list, positive_set, size=None):
@@ -78,21 +78,64 @@ def prepare_decagon_cv_files(opt):
 		return list(negative_set)
 
 	# graph_dict is ex drug_dict.
-	opt.graph_dict = read_graph_structure(opt.drug_data)
+	opt.graph_dict = read_graph_structure(opt.graph_data)
 	opt.side_effects, opt.side_effect_idx_dict = read_ddi_instances(
 		opt.ddi_data, use_small_dataset=opt.debug)
-	opt.pos_datasets, opt.neg_datasets = prepare_dataset(opt.side_effects, opt.drug_dict)
+	opt.pos_datasets, opt.neg_datasets = prepare_dataset(opt.side_effects, opt.graph_dict)
 	opt.n_atom_type = 100
 	opt.n_bond_type = 20  # 12 in polypharmacy dataset
 	opt.n_side_effect = len(opt.side_effects)
 	return opt
 
 
-def prepare_qm9_cv_files(opt):
+def prepare_qm9_cv(opt):
+	def read_qm9_labels(drug_labels_jsonl):
+		with open(drug_labels_jsonl) as f:
+			labels_dict = [l.split('\t') for l in f]
+			labels_dict = {idx: json.loads(labels) for idx, labels in tqdm(labels_dict)}
+		return labels_dict
+
 	opt.graph_dict = read_graph_structure(opt.graph_data)
+	opt.labels_dict = read_qm9_labels(opt.qm9_labels)
 	opt.n_atom_type = 5 # CHONF
 	opt.n_bond_type = 5 # single, double, triple, aromatic, self
 	return opt
+
+
+def split_decagon_cv(opt):
+	def split_all_cross_validation_datasets(datasets, n_fold):
+		cv_dataset = {x: {} for x in range(1, n_fold + 1)}
+		for se in datasets:
+			fold_len = len(datasets[se]) // n_fold
+			for fold_i in range(1, n_fold + 1):
+				fold_start = (fold_i - 1) * fold_len
+
+				if fold_i < n_fold:
+					fold_end = fold_i * fold_len
+				else:
+					fold_end = len(datasets[se])
+				cv_dataset[fold_i][se] = datasets[se][fold_start:fold_end]
+		return cv_dataset
+
+	pos_cv_dataset = split_all_cross_validation_datasets(opt.pos_datasets, opt.n_fold)
+	neg_cv_dataset = split_all_cross_validation_datasets(opt.neg_datasets, opt.n_fold)
+
+	for fold_i in range(1, opt.n_fold +1):
+		with open(opt.path + "decagon/" + "folds/" + opt.n_fold + "fold.npy") as f:
+			fold_dataset = {'pos': pos_cv_dataset[fold_i], 'neg': neg_cv_dataset[fold_i]}
+			f.write(pickle.dumps(fold_dataset))
+			print("len(pos_datasets)", len(pos_cv_dataset[fold_i]))
+			print("len(neg_datasets)", len(neg_cv_dataset[fold_i]))
+
+
+def split_qm9_cv(opt):
+	data_size = len(opt.graph_dict)
+
+	test_indices = []
+	for i in range(10000):
+		if i not in test_indices:
+			test_indices.append(random.randint(0,))
+
 
 
 def main():
@@ -111,64 +154,23 @@ def main():
 	parser.add_argument('--graph_data', default=None,
 	                    help="Graph features input file name, "
 						"e.g. drug.feat.wo_h.self_loop.idx.jsonl")
-	parser.add_argument('-n_fold', default=10, type=int)
+
+	parser.add_argument('-n_fold', default=10, type=int,
+	                    help="Specify number of folds for decagon. "
+	                         "QM9 uses 10k-10k-113k")
 	parser.add_argument('--debug', action='store_true')
 	opt = parser.parse_args()
 
 	if "qm9" in opt.datasets:
-		opt = prepare_qm9_cv_files(opt)
-		file_name = opt.path + "qm9/" + "folds/" + opt.n_fold + "fold.npy"
+		opt = prepare_qm9_cv(opt)
+		split_qm9_cv(opt)
 
 	if "decagon" in opt.datasets:
-		opt = prepare_decagon_cv_files(opt)
-		file_name = opt.path + "decagon/" + "folds/" + opt.n_fold + "fold.npy"
-
-	print('Dump to file:', file_name)
-	np.save(file_name, opt)
+		opt = prepare_decagon_cv(opt)
+		split_decagon_cv(opt)
 
 
-	pos_cv_dataset = split_all_cross_validation_datasets(pos_datasets, opt.n_fold)
-	neg_cv_dataset = split_all_cross_validation_datasets(neg_datasets, opt.n_fold)
-
-	cv_dataset = {'pos': pos_cv_dataset, 'neg': neg_cv_dataset}
-	with open('cv_data.txt', 'wb') as cv_file:
-		cv_file.write(pickle.dumps(cv_dataset))
-
-	print("len(pos_datasets)", len(pos_cv_dataset))
-	print("len(neg_datasets)", len(neg_cv_dataset))
-
-	def split_all_cross_validation_se_dataset(data, n_fold, fold_i):
-		fold_len = len(data) // n_fold
-
-		test_idx_start = (fold_i - 1) * fold_len
-		if fold_i < n_fold:
-			test_idx_end = fold_i * fold_len
-		else:
-			test_idx_end = len(data)
-
-
-		data_test = data[test_idx_start:test_idx_end]
-
-		data_rest = data[:test_idx_start] + data[test_idx_end:]
-		random.shuffle(data_rest)
-		data_valid = data_rest[:fold_len]
-		data_train = data_rest[fold_len:]
-		return data_train, data_valid, data_test
-
-	def split_all_cross_validation_datasets(datasets, n_fold):
-		cv_dataset = \
-			{x: {'train': {}, 'valid': {}, 'test': {}} for x in range(1, n_fold + 1)}
-
-		for se in datasets:
-			for fold_i in range(1, n_fold + 1):
-				data_train, data_valid, data_test = \
-					split_all_cross_validation_se_dataset(datasets[se], n_fold, fold_i)
-				cv_dataset[fold_i]['train'][se] = data_train
-				cv_dataset[fold_i]['valid'][se] = data_valid
-				cv_dataset[fold_i]['test'][se] = data_test
-		return cv_dataset
 
 
 if __name__ == '__main__':
 	main()
-

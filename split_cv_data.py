@@ -121,7 +121,7 @@ def split_decagon_cv(opt):
 	neg_cv_dataset = split_all_cross_validation_datasets(opt.neg_datasets, opt.n_fold)
 
 	for fold_i in range(1, opt.n_fold +1):
-		with open(opt.path + "folds/" + str(opt.n_fold) + "fold.npy", 'w') as f:
+		with open(opt.path + "folds/" + str(opt.n_fold) + "fold.npy", 'wb') as f:
 			fold_dataset = {'pos': pos_cv_dataset[fold_i], 'neg': neg_cv_dataset[fold_i]}
 			f.write(pickle.dumps(fold_dataset))
 			print("len(pos_datasets)", len(pos_cv_dataset[fold_i]))
@@ -156,26 +156,20 @@ def split_qm9_cv(opt):
 				train_graph_dict[x] = opt.graph_dict[str(x)]
 				train_labels_dict[x] = opt.labels_dict[str(x)]
 
-	with open(opt.path + "folds/" + "train_graphs.npy", 'w') as f:
-		for id, d in train_graph_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(d)))
-	with open(opt.path + "folds/" + "train_labels.npy", 'w') as f:
-		for id, lbl in train_labels_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
+	with open(opt.path + "folds/" + "train_graphs.npy", 'wb') as f:
+		f.write(pickle.dumps(train_graph_dict))
+	with open(opt.path + "folds/" + "train_labels.npy", 'wb') as f:
+		f.write(pickle.dumps(train_labels_dict))
 
-	with open(opt.path + "folds/" + "test_graphs.npy", 'w') as f:
-		for id, d in test_graph_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(d)))
-	with open(opt.path + "folds/" + "test_labels.npy", 'w') as f:
-		for id, lbl in test_labels_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
+	with open(opt.path + "folds/" + "test_graphs.npy", 'wb') as f:
+		f.write(pickle.dumps(test_graph_dict))
+	with open(opt.path + "folds/" + "test_labels.npy", 'wb') as f:
+		f.write(pickle.dumps(test_labels_dict))
 
-	with open(opt.path + "folds/" + "valid_graphs.npy", 'w') as f:
-		for id, d in valid_graph_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(d)))
-	with open(opt.path + "folds/" + "valid_labels.npy", 'w') as f:
-		for id, lbl in valid_labels_dict.items():
-			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
+	with open(opt.path + "folds/" + "valid_graphs.npy", 'wb') as f:
+		f.write(pickle.dumps(valid_graph_dict))
+	with open(opt.path + "folds/" + "valid_labels.npy", 'wb') as f:
+		f.write(pickle.dumps(valid_labels_dict))
 
 
 def main():

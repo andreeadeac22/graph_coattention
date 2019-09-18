@@ -40,7 +40,7 @@ def prepare_decagon_cv(opt):
 		side_effect_idx_dict = {sid: idx for idx, sid in enumerate(side_effects)}
 		return side_effects, side_effect_idx_dict
 
-	def prepare_dataset(se_dps_dict, drug_structure_dict, n_fold=10):
+	def prepare_dataset(se_dps_dict, drug_structure_dict):
 		drug_idx_list = list(drug_structure_dict.keys())
 		pos_datasets = {}
 		neg_datasets = {}
@@ -78,9 +78,9 @@ def prepare_decagon_cv(opt):
 		return list(negative_set)
 
 	# graph_dict is ex drug_dict.
-	opt.graph_dict = read_graph_structure(opt.graph_data)
+	opt.graph_dict = read_graph_structure(opt.path + opt.decagon_graph_data)
 	opt.side_effects, opt.side_effect_idx_dict = read_ddi_instances(
-		opt.ddi_data, use_small_dataset=opt.debug)
+		opt.path + opt.ddi_data, use_small_dataset=opt.debug)
 	opt.pos_datasets, opt.neg_datasets = prepare_dataset(opt.side_effects, opt.graph_dict)
 	opt.n_atom_type = 100
 	opt.n_bond_type = 20  # 12 in polypharmacy dataset
@@ -95,8 +95,8 @@ def prepare_qm9_cv(opt):
 			labels_dict = {idx: json.loads(labels) for idx, labels in tqdm(labels_dict)}
 		return labels_dict
 
-	opt.graph_dict = read_graph_structure(opt.graph_data)
-	opt.labels_dict = read_qm9_labels(opt.qm9_labels)
+	opt.graph_dict = read_graph_structure(opt.path + opt.qm9_graph_data)
+	opt.labels_dict = read_qm9_labels(opt.path + opt.qm9_labels)
 	opt.n_atom_type = 5 # CHONF
 	opt.n_bond_type = 5 # single, double, triple, aromatic, self
 	return opt
@@ -121,7 +121,7 @@ def split_decagon_cv(opt):
 	neg_cv_dataset = split_all_cross_validation_datasets(opt.neg_datasets, opt.n_fold)
 
 	for fold_i in range(1, opt.n_fold +1):
-		with open(opt.path + "decagon/" + "folds/" + opt.n_fold + "fold.npy") as f:
+		with open(opt.path + "folds/" + str(opt.n_fold) + "fold.npy", 'w') as f:
 			fold_dataset = {'pos': pos_cv_dataset[fold_i], 'neg': neg_cv_dataset[fold_i]}
 			f.write(pickle.dumps(fold_dataset))
 			print("len(pos_datasets)", len(pos_cv_dataset[fold_i]))
@@ -129,20 +129,60 @@ def split_decagon_cv(opt):
 
 
 def split_qm9_cv(opt):
-	data_size = len(opt.graph_dict)
+	data_size = len(opt.graph_dict) #ids are in [1,133,885]
+	print("data_size", data_size)
 
-	test_indices = []
-	for i in range(10000):
-		if i not in test_indices:
-			test_indices.append(random.randint(0,))
+	test_graph_dict = {}
+	test_labels_dict = {}
+	while len(test_graph_dict) < 10000:
+		x = random.randint(1,data_size)
+		if x not in test_graph_dict.keys():
+			test_graph_dict[x] = opt.graph_dict[str(x)]
+			test_labels_dict[x] = opt.labels_dict[str(x)]
 
+	valid_graph_dict = {}
+	valid_labels_dict = {}
+	while len(valid_graph_dict) < 10000:
+		x = random.randint(1, data_size)
+		if x not in valid_graph_dict.keys() and x not in test_graph_dict.keys():
+			valid_graph_dict[x] = opt.graph_dict[str(x)]
+			valid_labels_dict[x] = opt.labels_dict[str(x)]
+
+	train_graph_dict = {}
+	train_labels_dict = {}
+	for x in range(1, data_size + 1):
+		if x not in valid_graph_dict.keys():
+			if x not in test_graph_dict.keys():
+				train_graph_dict[x] = opt.graph_dict[str(x)]
+				train_labels_dict[x] = opt.labels_dict[str(x)]
+
+	with open(opt.path + "folds/" + "train_graphs.npy", 'w') as f:
+		for id, d in train_graph_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(d)))
+	with open(opt.path + "folds/" + "train_labels.npy", 'w') as f:
+		for id, lbl in train_labels_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
+
+	with open(opt.path + "folds/" + "test_graphs.npy", 'w') as f:
+		for id, d in test_graph_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(d)))
+	with open(opt.path + "folds/" + "test_labels.npy", 'w') as f:
+		for id, lbl in test_labels_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
+
+	with open(opt.path + "folds/" + "valid_graphs.npy", 'w') as f:
+		for id, d in valid_graph_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(d)))
+	with open(opt.path + "folds/" + "valid_labels.npy", 'w') as f:
+		for id, lbl in valid_labels_dict.items():
+			f.write('{}\t{}\n'.format(id, json.dumps(lbl)))
 
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('datasets', metavar='D', type=str.lower,
-	                    nargs='+', choices=['qm9', 'decagon'],
-	                    help='Name of dataset to download [QM9,DECAGON]')
+	parser.add_argument('dataset', metavar='D', type=str.lower,
+	    choices=['qm9', 'decagon'],
+		help='Name of dataset to split in train-validate-test [QM9,DECAGON]')
 
 	# I/O
 	parser.add_argument('-p', '--path', metavar='dir', type=str, nargs=1,
@@ -151,9 +191,12 @@ def main():
 	parser.add_argument('--ddi_data', default='bio-decagon-combo.csv')
 	parser.add_argument('--qm9_labels', default='drug.labels.jsonl')
 
-	parser.add_argument('--graph_data', default=None,
+	parser.add_argument('--decagon_graph_data', default="drug.feat.wo_h.self_loop.idx.jsonl",
 	                    help="Graph features input file name, "
 						"e.g. drug.feat.wo_h.self_loop.idx.jsonl")
+	parser.add_argument('--qm9_graph_data', default="drug.feat.self_loop.idx.jsonl",
+	                    help="Graph features input file name, "
+	                         "e.g. drug.feat.self_loop.idx.jsonl")
 
 	parser.add_argument('-n_fold', default=10, type=int,
 	                    help="Specify number of folds for decagon. "
@@ -161,11 +204,19 @@ def main():
 	parser.add_argument('--debug', action='store_true')
 	opt = parser.parse_args()
 
-	if "qm9" in opt.datasets:
+	# Check parameters
+	if opt.path is None:
+		opt.path = './data/'
+	else:
+		opt.path = opt.path[0]
+
+	if "qm9" in opt.dataset:
+		opt.path = opt.path + "qm9/dsgdb9nsd/"
 		opt = prepare_qm9_cv(opt)
 		split_qm9_cv(opt)
 
-	if "decagon" in opt.datasets:
+	if "decagon" in opt.dataset:
+		opt.path = opt.path + "decagon/"
 		opt = prepare_decagon_cv(opt)
 		split_decagon_cv(opt)
 

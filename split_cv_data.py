@@ -124,8 +124,6 @@ def split_decagon_cv(opt):
 		with open(opt.path + "folds/" + str(opt.n_fold) + "fold.npy", 'wb') as f:
 			fold_dataset = {'pos': pos_cv_dataset[fold_i], 'neg': neg_cv_dataset[fold_i]}
 			f.write(pickle.dumps(fold_dataset))
-			print("len(pos_datasets)", len(pos_cv_dataset[fold_i]))
-			print("len(neg_datasets)", len(neg_cv_dataset[fold_i]))
 
 
 def split_qm9_cv(opt):

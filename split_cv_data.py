@@ -17,69 +17,30 @@ def read_graph_structure(drug_feat_idx_jsonl):
 	return drugs
 
 
-def split_decagon_cv(pos_datasets, neg_datasets, opt):
-	def split_all_cross_validation_datasets(datasets, n_fold):
-		cv_dataset = {x: {} for x in range(1, n_fold + 1)}
-		for se in datasets:
-			fold_len = len(datasets[se]) // n_fold
-			for fold_i in range(1, n_fold + 1):
-				fold_start = (fold_i - 1) * fold_len
+def read_ddi_instances(ddi_csv, threshold=498, use_small_dataset=False):
+	# Building side-effect dictionary and
+	# keeping only those which appear more than threshold (498) times.
+	side_effects = {}
+	with open(ddi_csv) as csvfile:
+		drug_reader = csv.reader(csvfile)
+		for i, row in enumerate(drug_reader):
+			if i > 0:
+				did1, did2, sid, *_ = row
+				assert did1 != did2
+				if sid not in side_effects:
+					side_effects[sid] = []
+				side_effects[sid] += [(did1, did2)]
 
-				if fold_i < n_fold:
-					fold_end = fold_i * fold_len
-				else:
-					fold_end = len(datasets[se])
-				cv_dataset[fold_i][se] = datasets[se][fold_start:fold_end]
-		return cv_dataset
-
-	pos_cv_dataset = split_all_cross_validation_datasets(pos_datasets, opt.n_fold)
-	neg_cv_dataset = split_all_cross_validation_datasets(neg_datasets, opt.n_fold)
-
-	for fold_i in range(1, opt.n_fold +1):
-		with open(opt.path + "folds/" + str(opt.n_fold) + "fold.npy", 'wb') as f:
-			fold_dataset = {'pos': pos_cv_dataset[fold_i], 'neg': neg_cv_dataset[fold_i]}
-			f.write(pickle.dumps(fold_dataset))
+	side_effects = {se: ddis for se, ddis in side_effects.items() if len(ddis) >= threshold}
+	if use_small_dataset:  # just for debugging
+		side_effects = {se: ddis for se, ddis in
+		                sorted(side_effects.items(), key=lambda x: len(x[1]), reverse=True)[:20]}
+	print('Total types of polypharmacy side effects =', len(side_effects))
+	side_effect_idx_dict = {sid: idx for idx, sid in enumerate(side_effects)}
+	return side_effects, side_effect_idx_dict
 
 
-def prepare_decagon_cv(opt):
-	def read_ddi_instances(ddi_csv, threshold=498, use_small_dataset=False):
-		# Building side-effect dictionary and
-		# keeping only those which appear more than threshold (498) times.
-		side_effects = {}
-		with open(ddi_csv) as csvfile:
-			drug_reader = csv.reader(csvfile)
-			for i, row in enumerate(drug_reader):
-				if i > 0:
-					did1, did2, sid, *_ = row
-					assert did1 != did2
-					if sid not in side_effects:
-						side_effects[sid] = []
-					side_effects[sid] += [(did1, did2)]
-
-		side_effects = {se: ddis for se, ddis in side_effects.items() if len(ddis) >= threshold}
-		if use_small_dataset:  # just for debugging
-			side_effects = {se: ddis for se, ddis in
-			                sorted(side_effects.items(), key=lambda x: len(x[1]), reverse=True)[:20]}
-		print('Total types of polypharmacy side effects =', len(side_effects))
-		side_effect_idx_dict = {sid: idx for idx, sid in enumerate(side_effects)}
-		return side_effects, side_effect_idx_dict
-
-	def prepare_dataset(se_dps_dict, drug_structure_dict):
-		drug_idx_list = list(drug_structure_dict.keys())
-		pos_datasets = {}
-		neg_datasets = {}
-
-		for i, se in enumerate(tqdm(se_dps_dict)):
-			pos_se_ddp = list(se_dps_dict[se])  # copy
-			neg_se_ddp = create_negative_instances(
-				drug_idx_list, set(pos_se_ddp), size=len(pos_se_ddp))
-
-			random.shuffle(pos_se_ddp)
-			random.shuffle(neg_se_ddp)
-			pos_datasets[se] = pos_se_ddp
-			neg_datasets[se] = neg_se_ddp
-		return pos_datasets, neg_datasets
-
+def prepare_dataset(se_dps_dict, drug_structure_dict):
 	def create_negative_instances(drug_idx_list, positive_set, size=None):
 		''' For test and validation set'''
 		negative_set = set()
@@ -100,9 +61,51 @@ def prepare_decagon_cv(opt):
 
 			negative_set |= {neg_se_ddp1}
 		return list(negative_set)
+	drug_idx_list = list(drug_structure_dict.keys())
+	pos_datasets = {}
+	neg_datasets = {}
 
+	for i, se in enumerate(tqdm(se_dps_dict)):
+		pos_se_ddp = list(se_dps_dict[se])  # copy
+		neg_se_ddp = create_negative_instances(
+			drug_idx_list, set(pos_se_ddp), size=len(pos_se_ddp))
+
+		random.shuffle(pos_se_ddp)
+		random.shuffle(neg_se_ddp)
+		pos_datasets[se] = pos_se_ddp
+		neg_datasets[se] = neg_se_ddp
+	return pos_datasets, neg_datasets
+
+
+def split_decagon_cv(pos_datasets, neg_datasets, opt):
+	def split_all_cross_validation_datasets(datasets, n_fold):
+		cv_dataset = {x: {} for x in range(1, n_fold + 1)}
+		for se in datasets:
+			fold_len = len(datasets[se]) // n_fold
+			for fold_i in range(1, n_fold + 1):
+				fold_start = (fold_i - 1) * fold_len
+
+				if fold_i < n_fold:
+					fold_end = fold_i * fold_len
+				else:
+					fold_end = len(datasets[se])
+				cv_dataset[fold_i][se] = datasets[se][fold_start:fold_end]
+		return cv_dataset
+
+	pos_cv_dataset = split_all_cross_validation_datasets(pos_datasets, opt.n_fold)
+	neg_cv_dataset = split_all_cross_validation_datasets(neg_datasets, opt.n_fold)
+
+	for i in range(1, opt.n_fold +1):
+		with open(opt.path + "folds/" + str(i) + "fold.npy", 'wb') as file:
+			fold_dataset = { 'pos': pos_cv_dataset[i], 'neg': neg_cv_dataset[i]}
+			pickle.dump(fold_dataset, file)
+
+
+def prepare_decagon_cv(opt):
 	# graph_dict is ex drug_dict.
 	graph_dict = read_graph_structure(opt.path + opt.decagon_graph_data)
+	print(len(graph_dict))
+
 	opt.side_effects, opt.side_effect_idx_dict = read_ddi_instances(
 		opt.path + opt.ddi_data, use_small_dataset=opt.debug)
 	pos_datasets, neg_datasets = prepare_dataset(opt.side_effects, graph_dict)

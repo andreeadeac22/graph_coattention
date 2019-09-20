@@ -12,9 +12,10 @@ import numpy as np
 import torch
 import torch.utils.data
 
+from qm9_dataset import QM9Dataset
 from ddi_dataset import collate_paired_batch, PolypharmacyDataset, collate_batch
 from utils.file_utils import setup_running_directories, save_experiment_settings
-from utils.functional_utils import combine
+from utils.functional_utils import combine, build_qm9_dataset
 
 def post_parse_args(opt):
 	# Set the random seed manually for reproducibility.
@@ -36,7 +37,26 @@ def post_parse_args(opt):
 
 
 def prepare_qm9_dataloaders(opt):
-	return
+	train_loader = torch.util.data.DataLoader(
+		QM9Dataset(
+			graph_dict = opt.graph_dict, #TODO need train_graph_dict?
+			pairs_dataset = opt.pairs_dataset,
+		),
+		num_workers = 2,
+		batch_size = opt.batch_size,
+		collate_fn = collate_fn, #TODO
+		shuffle = True)
+	valid_loader = torch.util.data.DataLoader(
+		QM9Dataset(
+			graph_dict=opt.graph_dict, #TODO need valid_graph_dict?
+			pairs_dataset = opt.pairs_dataset,
+		),
+		num_workers = 2,
+		batch_size = opt.batch_size,
+		collate_fn = collate_fn,
+		shuffle = True)
+	return train_loader, valid_loader
+
 
 def prepare_ddi_dataloaders(opt):
 	train_loader = torch.utils.data.DataLoader(
@@ -95,7 +115,7 @@ def main():
 	parser.add_argument('-f', '--fold', default='1/10', type=str,
 	                    help="Which fold to test on, format x/total")
 
-	parser.add_argument('--qm9_pairings', default = 5, type=int,
+	parser.add_argument('--qm9_pairing_repetitions', default = 1, type=int,
 	                    help="How many times to pair each molecule with a random molecule")
 
 	# Dirs
@@ -145,7 +165,7 @@ def main():
 	assert os.path.exists(opt.input_data_path + "folds/")
 
 
-	# code which is common for ddi and qm9. TODO if adding other datasets
+	# code which is common for ddi and qm9. take care(P0) if adding other datasets
 	data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb')).item()
 	opt.n_atom_type = data_opt.n_atom_type
 	opt.n_bond_type = data_opt.n_bond_type
@@ -155,18 +175,34 @@ def main():
 		opt.train_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_graphs.npy", "rb"))
 		opt.train_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_labels.npy", "rb"))
 
-
 		opt.valid_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_graphs.npy", "rb"))
 		opt.valid_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_labels.npy", "rb"))
 
 		opt.test_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_graphs.npy", "rb"))
 		opt.test_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_labels.npy", "rb"))
 
-		#TODO Need to build pair dataset --
-		# pair only drugs from train subset? how many repetitions?
+		# pair train-train, valid-train, test-train
+		#TODO start with one copy and compare with multiple
+		opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
+		                                      graph_dict2=opt.train_graph_dict,
+		                                      labels_dict1=opt.train_labels_dict,
+		                                      labels_dict2=opt.train_labels_dict,
+		                                      repetitions=opt.qm9_pairing_repetitions)
+
+		opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
+		                                      graph_dict2=opt.train_graph_dict,
+		                                      labels_dict1=opt.valid_labels_dict,
+		                                      labels_dict2=opt.train_labels_dict,
+		                                      repetitions=opt.qm9_pairing_repetitions)
+
+		opt.test_dataset = build_qm9_dataset(graph_dict1=opt.test_graph_dict,
+		                                      graph_dict2=opt.train_graph_dict,
+		                                      labels_dict1=opt.test_labels_dict,
+		                                      labels_dict2=opt.train_labels_dict,
+		                                      repetitions=opt.qm9_pairing_repetitions)
+
 
 		#TODO Need to build custom dataset class which feeds in pairs.
-
 		dataloaders = prepare_qm9_dataloaders(opt)
 
 
@@ -175,6 +211,8 @@ def main():
 		opt.side_effects = data_opt.side_effects
 		opt.side_effect_idx_dict = data_opt.side_effect_idx_dict
 
+		# 'pos'/'neg' will point to a dictionary where
+		# each se points to a list of drug-drug pairs.
 		opt.train_dataset = {'pos': {}, 'neg': {}}
 		opt.test_dataset = pickle.load(open(opt.input_data_path + "folds/" + str(opt.fold_i) + "fold.npy", "rb"))
 		if opt.fold_i == 1:

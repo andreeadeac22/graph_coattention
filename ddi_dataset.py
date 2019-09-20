@@ -166,6 +166,8 @@ class PolypharmacyDataset(torch.utils.data.Dataset):
 
         def collect_with_proper_size_se(ddis, inst_label):
             ''' To reduce the duplicated computing on same graph pair for different labels. '''
+            # split number of ses in k * batch(ses) to account
+            # for d-d with many vs few ses
             ddis = dict(ddis)
             inst_list = []
             for dp, ses in ddis.items():

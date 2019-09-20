@@ -89,12 +89,9 @@ class QM9Dataset(torch.utils.data.Dataset):
             self,
             graph_dict,
             pairs_dataset=None,
-            n_max_batch_se=1,
-            paired_input=False): #TODO what is paired input doing?
+            n_max_batch_se=1):
 
         assert pairs_dataset
-
-        self.paired_input = paired_input
 
         """
         print("Se idx dict ")
@@ -102,61 +99,23 @@ class QM9Dataset(torch.utils.data.Dataset):
             for se in se_idx_dict:
                 print(se, se_idx_dict[se], file=filename)
         """
-        self.drug_structure_dict = drug_structure_dict
+        self.graph_dict = graph_dict
         """
         print("Drug struct dict ")
         with open("drug_struct_dict.txt", "w") as filename1:
             for drug in drug_structure_dict:
                 print(drug, drug_structure_dict[se], file=filename1)
         """
-        self.drug_idx_list = list(drug_structure_dict.keys())
-        self.n_inst_batch_se = n_max_batch_se
-        self.n_corrupt = negative_sample_ratio
-
-        self.pos_ddis = self.collate_given_positive_set(se_pos_dps, se_idx_dict, negative_sampling)
-        self.neg_ddis = self.collate_given_negative_set(se_neg_dps, se_idx_dict)
+        self.graph_idx_list = list(graph_dict.keys())
 
         self.feeding_insts = None
         self.prepare_feeding_insts()
 
-    def collate_given_negative_set(self, se_neg_dps, se_idx_dict):
-        ''' From se -> dps mapping to dp -> ses mapping '''
-        neg_ddis = {}
-        if se_neg_dps:
-            for se, dps in se_neg_dps.items():
-                for dp in dps:
-                    if dp not in neg_ddis:
-                        neg_ddis[dp] = []
-                    neg_ddis[dp] += [se_idx_dict[se]]
-        return neg_ddis
-
-    def mapping_transpose(self, se_dps_dict):
-        ''' From `se -> dps` mapping to `dp -> ses` mapping '''
-        dp_ses_dict = {}
-        for se, dps in se_dps_dict.items():
-            for dp in dps:
-                if dp not in dp_ses_dict:
-                    dp_ses_dict[dp] = []
-                dp_ses_dict[dp] += [se]
-        return dp_ses_dict
-
-    def collate_given_positive_set(self, se_pos_dps, se_idx_dict, negative_sampling):
-        ''' From se -> dps mapping to dp -> ses mapping '''
-        pos_ddis = {}
-        flip_drug_pair = lambda dp: tuple(reversed(dp))
-        for se, dps in se_pos_dps.items():
-            if negative_sampling:
-                dps = dps + list(map(flip_drug_pair, dps))
-            for dp in dps:
-                if dp not in pos_ddis:
-                    pos_ddis[dp] = []
-                pos_ddis[dp] += [se_idx_dict[se]]
-        return pos_ddis
 
     def prepare_feeding_insts(self):
 
         def collect_with_proper_size_se(ddis, inst_label):
-            ''' To reduce the duplicated computing on same graph pair for different labels. '''
+	        # TODO: need to build list of (dp, label1, label2)
             ddis = dict(ddis)
             inst_list = []
             for dp, ses in ddis.items():
@@ -168,29 +127,9 @@ class QM9Dataset(torch.utils.data.Dataset):
             return inst_list
 
         pos_insts = collect_with_proper_size_se(self.pos_ddis, inst_label=True)
-
-        if self.negative_sampling:
-            feeding_insts = []
-            rand_drugs = list(np.random.choice(
-                self.drug_idx_list, size=self.n_corrupt * len(pos_insts)))
-
-            if not self.paired_input:
-                feeding_insts = pos_insts
-
-            for pos_inst in pos_insts:
-                d1, _, ses, _ = pos_inst
-                corr_insts = [(d1, rand_drugs.pop(), ses, False) for _ in range(self.n_corrupt)]
-
-                if self.paired_input:
-                    paired_feed = (pos_inst, corr_insts)
-                    feeding_insts += [paired_feed]
-                else:
-                    feeding_insts += corr_insts
-        else:
-            neg_insts = collect_with_proper_size_se(self.neg_ddis, inst_label=False)
-            feeding_insts = pos_insts + neg_insts
-
+        feeding_insts = pos_insts
         self.feeding_insts = feeding_insts
+
 
     def __len__(self):
         return len(self.feeding_insts)
@@ -198,14 +137,9 @@ class QM9Dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         instance = self.feeding_insts[idx]
         # drug lookup
-        if self.paired_input:
-            pos_inst, neg_insts = instance
-            pos_inst = self.drug_structure_lookup(pos_inst)
-            neg_insts = list(map(self.drug_structure_lookup, neg_insts))
-            return pos_inst, neg_insts
-        else:
-            instance = self.drug_structure_lookup(instance)
-            return instance
+        instance = self.drug_structure_lookup(instance)
+        return instance
+
 
     def drug_structure_lookup(self, instance):
         drug_idx1, drug_idx2, se_idx_lists, label = instance

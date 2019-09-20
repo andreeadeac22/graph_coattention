@@ -103,12 +103,12 @@ def split_decagon_cv(pos_datasets, neg_datasets, opt):
 
 def prepare_decagon_cv(opt):
 	# graph_dict is ex drug_dict.
-	graph_dict = read_graph_structure(opt.path + opt.decagon_graph_data)
-	print(len(graph_dict))
+	opt.graph_dict = read_graph_structure(opt.path + opt.decagon_graph_data)
+	print(len(opt.graph_dict))
 
 	opt.side_effects, opt.side_effect_idx_dict = read_ddi_instances(
 		opt.path + opt.ddi_data, use_small_dataset=opt.debug)
-	pos_datasets, neg_datasets = prepare_dataset(opt.side_effects, graph_dict)
+	pos_datasets, neg_datasets = prepare_dataset(opt.side_effects, opt.graph_dict)
 	opt.n_atom_type = 100
 	opt.n_bond_type = 20  # 12 in polypharmacy dataset
 	opt.n_side_effect = len(opt.side_effects)
@@ -117,7 +117,7 @@ def prepare_decagon_cv(opt):
 
 
 def split_qm9_cv(graph_dict, labels_dict, opt):
-	data_size = len(opt.graph_dict) #ids are in [1,133,885]
+	data_size = len(graph_dict) #ids are in [1,133,885]
 	print("data_size", data_size)
 
 	test_graph_dict = {}
@@ -167,11 +167,14 @@ def prepare_qm9_cv(opt):
 			labels_dict = {idx: json.loads(labels) for idx, labels in tqdm(labels_dict)}
 		return labels_dict
 
-	graph_dict = read_graph_structure(opt.path + opt.qm9_graph_data)
+	# this is missing the "datasets" (graph pairs), because
+	# i will compute them on the fly to be able to do it multiple times
+	# if it's unstable.
+	opt.graph_dict = read_graph_structure(opt.path + opt.qm9_graph_data)
 	labels_dict = read_qm9_labels(opt.path + opt.qm9_labels)
 	opt.n_atom_type = 5 # CHONF
 	opt.n_bond_type = 5 # single, double, triple, aromatic, self
-	split_qm9_cv(graph_dict, labels_dict, opt)
+	split_qm9_cv(opt.graph_dict, labels_dict, opt)
 	return opt
 
 

@@ -12,7 +12,9 @@ import numpy as np
 import torch
 import torch.utils.data
 
+from ddi_dataset import collate_paired_batch, PolypharmacyDataset, collate_batch
 from utils.file_utils import setup_running_directories, save_experiment_settings
+from utils.functional_utils import combine
 
 def post_parse_args(opt):
 	# Set the random seed manually for reproducibility.
@@ -31,6 +33,39 @@ def post_parse_args(opt):
 	opt.best_model_pkl = os.path.join(opt.model_dir, opt.exp_prefix + '.pth')
 	opt.result_csv_file = os.path.join(opt.result_dir, opt.exp_prefix + '.csv')
 	return opt
+
+
+def prepare_qm9_dataloaders(opt):
+	return
+
+def prepare_ddi_dataloaders(opt):
+	train_loader = torch.utils.data.DataLoader(
+		PolypharmacyDataset(
+			drug_structure_dict= opt.graph_dict, #TODO  #opt.drug_dict,
+			se_idx_dict = opt.side_effect_idx_dict,
+			se_pos_dps = opt.train_dataset['pos'],
+			#TODO: inspect why I'm not just fetching opt.train_dataset['neg']
+			negative_sampling=True,
+			negative_sample_ratio=opt.train_neg_pos_ratio,
+			paired_input=True,
+			n_max_batch_se=10),
+		num_workers=2,
+		batch_size=opt.batch_size,
+		collate_fn=collate_paired_batch,
+		shuffle=True)
+
+	valid_loader = torch.utils.data.DataLoader(
+		PolypharmacyDataset(
+			drug_structure_dict = opt.graph_dict,
+			se_idx_dict = opt.side_effect_idx_dict,
+			se_pos_dps = opt.valid_dataset['pos'],
+			se_neg_dps = opt.valid_dataset['neg'],
+			n_max_batch_se=1),
+		num_workers=2,
+		batch_size=opt.batch_size,
+		collate_fn=lambda x: collate_batch(x, return_label=True))
+	return train_loader, valid_loader
+
 
 
 def main():
@@ -58,7 +93,7 @@ def main():
 	#	'./data/decagon/bio-decagon-combo.csv')
 
 	parser.add_argument('-f', '--fold', default='1/10', type=str,
-	                    help="Which fold to run, format x/total")
+	                    help="Which fold to test on, format x/total")
 
 	# Dirs
 	parser.add_argument('--model_dir', default='./exp_trained')
@@ -105,11 +140,14 @@ def main():
 
 	assert os.path.exists(opt.input_data_path + "folds/")
 
-	if "qm9" in opt.dataset:
-		data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb')).item()
 
-		opt.n_atom_type = data_opt.n_atom_type
-		opt.n_bond_type = data_opt.n_bond_type
+	# code which is common for ddi and qm9. TODO if adding other datasets
+	data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb')).item()
+	opt.n_atom_type = data_opt.n_atom_type
+	opt.n_bond_type = data_opt.n_bond_type
+	opt.graph_dict = data_opt.graph_dict
+
+	if "qm9" in opt.dataset:
 
 
 		opt.train_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_graphs.npy", "rb"))
@@ -121,30 +159,40 @@ def main():
 		opt.test_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_graphs.npy", "rb"))
 		opt.test_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_labels.npy", "rb"))
 
+		#TODO Need to build pair dataset --
+		# pair only drugs from train subset? how many repetitions?
+
+		#TODO Need to build custom dataset class which feeds in pairs.
+
+		dataloaders = prepare_qm9_dataloaders(opt)
 
 
 	if "decagon" in opt.dataset:
-		data_opt = np.load(open(opt.input_data_path + "input_data.npy", 'rb')).item()
-		opt.n_atom_type = data_opt.n_atom_type
-		opt.n_bond_type = data_opt.n_bond_type
 		opt.n_side_effect = data_opt.n_side_effect
-
-		graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "1fold.npy", "rb"))
-		for se in graph_dict['pos']:
-			print(se)
-			print(graph_dict['pos'][se])
-			break
-
-		"""
-		assert data_opt.n_side_effect == len(opt.side_effects)
-
-		data_opt = np.load(open(opt.data_pkl, 'rb')).item()
-		opt.ddi_data = data_opt.ddi_data
-		opt.drug_data = data_opt.drug_data
-		opt.drug_dict = data_opt.drug_dict
 		opt.side_effects = data_opt.side_effects
 		opt.side_effect_idx_dict = data_opt.side_effect_idx_dict
-		"""
+
+		opt.train_dataset = {'pos': {}, 'neg': {}}
+		opt.test_dataset = pickle.load(open(opt.input_data_path + "folds/" + str(opt.fold_i) + "fold.npy", "rb"))
+		if opt.fold_i == 1:
+			opt.valid_dataset = pickle.load(open(opt.input_data_path + "folds/" + str(2) + "fold.npy", "rb"))
+
+			for i in range(3,opt.n_fold+1):
+				dataset = pickle.load(open(opt.input_data_path + "folds/" + str(i) + "fold.npy", "rb"))
+				opt.train_dataset['pos'] = combine(opt.train_dataset['pos'], dataset['pos'])
+				opt.train_dataset['neg'] = combine(opt.train_dataset['neg'], dataset['neg'])
+		else:
+			opt.valid_dataset = pickle.load(open(opt.input_data_path + "folds/" + str(1) + "fold.npy", "rb"))
+
+			for i in range(2, opt.n_fold+1):
+				if i != opt.fold_i:
+					dataset = pickle.load(open(opt.input_data_path + "folds/" + str(i) + "fold.npy", "rb"))
+					opt.train_dataset['pos'] = combine(opt.train_dataset['pos'], dataset['pos'])
+					opt.train_dataset['neg'] = combine(opt.train_dataset['neg'], dataset['neg'])
+
+		assert data_opt.n_side_effect == len(opt.side_effects)
+
+		dataloaders = prepare_ddi_dataloaders(opt)
 
 	save_experiment_settings(opt)
 

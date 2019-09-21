@@ -7,9 +7,11 @@ from modules import CoAttentionMessagePassingNetwork
 class DrugDrugInteractionNetwork(nn.Module):
 	def __init__(
 			self,
-			n_side_effect, n_atom_type, n_bond_type,
+			n_atom_type, n_bond_type,
 			d_node, d_edge, d_atom_feat, d_hid,
-			n_prop_step, n_head=1, dropout=0.1,
+			n_prop_step,
+			n_side_effect=None,
+			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
 		super().__init__()

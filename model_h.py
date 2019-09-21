@@ -8,9 +8,11 @@ from modules import CoAttentionMessagePassingNetwork
 class DrugDrugInteractionNetworkH(nn.Module):
 	def __init__(
 			self,
-			n_side_effect, n_atom_type, n_bond_type,
+			n_atom_type, n_bond_type,
 			d_node, d_edge, d_atom_feat, d_hid,
-			n_prop_step, n_head=1, dropout=0.1,
+			n_prop_step,
+			n_side_effect=None,
+			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
 		super().__init__()
@@ -20,13 +22,16 @@ class DrugDrugInteractionNetworkH(nn.Module):
 		self.atom_proj = nn.Linear(d_node + d_atom_feat, d_node)
 		self.atom_emb = nn.Embedding(n_atom_type, d_node, padding_idx=0)
 		self.bond_emb = nn.Embedding(n_bond_type, d_edge, padding_idx=0)
-		
-		self.side_effect_emb = nn.Embedding(n_side_effect, d_hid)
-		self.side_effect_norm_emb = nn.Embedding(n_side_effect, d_hid)
 		nn.init.xavier_normal_(self.atom_emb.weight)
 		nn.init.xavier_normal_(self.bond_emb.weight)
-		nn.init.xavier_normal_(self.side_effect_emb.weight)
-		nn.init.xavier_normal_(self.side_effect_norm_emb.weight)
+
+		self.side_effect_emb = None
+		self.side_effect_norm_emb = None
+		if n_side_effect is not None:
+			self.side_effect_emb = nn.Embedding(n_side_effect, d_hid)
+			self.side_effect_norm_emb = nn.Embedding(n_side_effect, d_hid)
+			nn.init.xavier_normal_(self.side_effect_emb.weight)
+			nn.init.xavier_normal_(self.side_effect_norm_emb.weight)
 
 		self.encoder = CoAttentionMessagePassingNetwork(
 			d_hid=d_hid, n_head=n_head, n_prop_step=n_prop_step,
@@ -62,9 +67,6 @@ class DrugDrugInteractionNetworkH(nn.Module):
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2)
 
-		se_vec = self.dropout(self.side_effect_emb(se_idx))
-		se_norm = self.dropout(self.side_effect_norm_emb(se_idx))
-
 		d1_vec = d1_vec.index_select(0, drug_se_seg)
 		d2_vec = d2_vec.index_select(0, drug_se_seg)
 
@@ -73,29 +75,33 @@ class DrugDrugInteractionNetworkH(nn.Module):
 		t_d1_vec = self.tail_proj(d1_vec)
 		t_d2_vec = self.tail_proj(d2_vec)
 
-		h_d1_vec = self.transH_proj(h_d1_vec, se_norm)
-		h_d2_vec = self.transH_proj(h_d2_vec, se_norm)
-		t_d1_vec = self.transH_proj(t_d1_vec, se_norm)
-		t_d2_vec = self.transH_proj(t_d2_vec, se_norm)
+		if self.side_effect_emb is not None:
+			se_vec = self.dropout(self.side_effect_emb(se_idx))
+			se_norm = self.dropout(self.side_effect_norm_emb(se_idx))
 
-		e_vecs = [se_vec, d1_vec, d2_vec,
-				  h_d1_vec, h_d2_vec, t_d1_vec, t_d2_vec]
+			h_d1_vec = self.transH_proj(h_d1_vec, se_norm)
+			h_d2_vec = self.transH_proj(h_d2_vec, se_norm)
+			t_d1_vec = self.transH_proj(t_d1_vec, se_norm)
+			t_d2_vec = self.transH_proj(t_d2_vec, se_norm)
 
-		fwd_score = self.cal_translation_score(
-			head=h_d1_vec,
-			tail=t_d2_vec,
-			rel=se_vec)
-		bwd_score = self.cal_translation_score(
-			head=h_d2_vec,
-			tail=t_d1_vec,
-			rel=se_vec)
-		score = fwd_score + bwd_score
+			e_vecs = [se_vec, d1_vec, d2_vec,
+					  h_d1_vec, h_d2_vec, t_d1_vec, t_d2_vec]
 
-		o_loss = self.cal_orthogonal_loss(se_vec, se_norm)
-		n_loss = sum([self.cal_vec_norm_loss(v) for v in e_vecs])
+			fwd_score = self.cal_translation_score(
+				head=h_d1_vec,
+				tail=t_d2_vec,
+				rel=se_vec)
+			bwd_score = self.cal_translation_score(
+				head=h_d2_vec,
+				tail=t_d1_vec,
+				rel=se_vec)
+			score = fwd_score + bwd_score
 
-		#return score, o_loss + n_loss
-		return score, o_loss + n_loss, se_idx, d1_vec, d2_vec
+			o_loss = self.cal_orthogonal_loss(se_vec, se_norm)
+			n_loss = sum([self.cal_vec_norm_loss(v) for v in e_vecs])
+
+			#return score, o_loss + n_loss
+			return score, o_loss + n_loss, se_idx, d1_vec, d2_vec
 
 	def embed(self, seg_m1, atom_type1, atom_feat1, bond_type1,
 			inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,

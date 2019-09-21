@@ -12,6 +12,7 @@ class DrugDrugInteractionNetworkH(nn.Module):
 			d_node, d_edge, d_atom_feat, d_hid,
 			n_prop_step,
 			n_side_effect=None,
+			n_lbls = 13,
 			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
@@ -43,7 +44,10 @@ class DrugDrugInteractionNetworkH(nn.Module):
 		nn.init.xavier_normal_(self.head_proj.weight)
 		nn.init.xavier_normal_(self.tail_proj.weight)
 
+		self.lbl_predict = nn.Linear(d_hid, n_lbls)
+
 		self.__score_fn = score_fn
+
 
 	@property
 	def score_fn(self):
@@ -67,6 +71,7 @@ class DrugDrugInteractionNetworkH(nn.Module):
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2)
 
+		# TODO: what does this do? select pred for specific se?
 		d1_vec = d1_vec.index_select(0, drug_se_seg)
 		d2_vec = d2_vec.index_select(0, drug_se_seg)
 
@@ -102,6 +107,11 @@ class DrugDrugInteractionNetworkH(nn.Module):
 
 			#return score, o_loss + n_loss
 			return score, o_loss + n_loss, se_idx, d1_vec, d2_vec
+		else:
+			pred1 = self.lbl_predict(d1_vec)
+			pred2 = self.lbl_predict(d2_vec)
+			return (pred1,pred2), d1_vec, d2_vec
+
 
 	def embed(self, seg_m1, atom_type1, atom_feat1, bond_type1,
 			inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
@@ -120,20 +130,25 @@ class DrugDrugInteractionNetworkH(nn.Module):
 		d2_vec = d2_vec.index_select(0, drug_se_seg)
 		return d1_vec, d2_vec
 
+
 	def transH_proj(self, original, norm):
 		return original - torch.sum(original * norm, dim=1, keepdim=True) * norm
+
 
 	def atom_comp(self, atom_feat, atom_idx):
 		atom_emb = self.atom_emb(atom_idx)
 		node = self.atom_proj(torch.cat([atom_emb, atom_feat], -1))
 		return node
 
+
 	def cal_translation_score(self, head, tail, rel):
 		return torch.norm(head + rel - tail, dim=1)
+
 
 	def cal_vec_norm_loss(self, vec, dim=1):
 		norm = torch.norm(vec, dim=dim)
 		return torch.mean(F.relu(norm - 1))
+
 
 	def cal_orthogonal_loss(self, rel_emb, norm_emb):
 		a = torch.sum(norm_emb * rel_emb, dim=1, keepdim=True) ** 2

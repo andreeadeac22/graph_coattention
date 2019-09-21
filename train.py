@@ -334,7 +334,6 @@ def main():
 	parser.add_argument('-tr', '--transR', action='store_true')
 	parser.add_argument('-th', '--transH', action='store_true')
 
-
 	opt = parser.parse_args()
 
 	opt.fold_i, opt.n_fold = map(int, opt.fold.split('/'))
@@ -353,7 +352,6 @@ def main():
 		logging.info('Related data will be saved with prefix: %s', opt.exp_prefix)
 
 	assert os.path.exists(opt.input_data_path + "folds/")
-
 
 	# code which is common for ddi and qm9. take care(P0) if adding other datasets
 	data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb')).item()
@@ -392,7 +390,6 @@ def main():
 		                                      labels_dict2=opt.train_labels_dict,
 		                                      repetitions=opt.qm9_pairing_repetitions)
 
-		#TODO Need to build custom dataset class which feeds in pairs.
 		dataloaders = prepare_qm9_dataloaders(opt)
 
 
@@ -459,7 +456,7 @@ def main():
 			opt.global_step, opt.best_model_pkl)
 		model.load_state_dict(trained_state['model'])
 
-	#train(model, dataloaders, device, opt)
+	train(model, dataloaders, device, opt)
 
 
 if __name__ == "__main__":

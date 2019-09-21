@@ -11,6 +11,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 			d_node, d_edge, d_atom_feat, d_hid,
 			n_prop_step,
 			n_side_effect=None,
+			n_lbls = 13,
 			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
@@ -38,6 +39,8 @@ class DrugDrugInteractionNetwork(nn.Module):
 		self.tail_proj = nn.Linear(d_hid, d_hid, bias=False)
 		nn.init.xavier_normal_(self.head_proj.weight)
 		nn.init.xavier_normal_(self.tail_proj.weight)
+
+		self.lbl_predict = nn.Linear(d_hid, n_lbls)
 
 		self.__score_fn = score_fn
 
@@ -80,6 +83,11 @@ class DrugDrugInteractionNetwork(nn.Module):
 			score = fwd_score + bwd_score
 
 			return score,
+		else:
+			pred1 = self.lbl_predict(d1_vec)
+			pred2 = self.lbl_predict(d2_vec)
+			return (pred1,pred2)
+
 
 	def atom_comp(self, atom_feat, atom_idx):
 		atom_emb = self.atom_emb(atom_idx)

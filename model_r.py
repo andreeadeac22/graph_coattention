@@ -12,6 +12,7 @@ class DrugDrugInteractionNetworkR(nn.Module):
 			d_node, d_edge, d_atom_feat, d_hid,
 			n_prop_step,
 			n_side_effect=None,
+			n_lbls = 13,
 			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
@@ -54,6 +55,8 @@ class DrugDrugInteractionNetworkR(nn.Module):
 		else:
 			raise NotImplementedError
 
+		self.lbl_predict = nn.Linear(d_hid, n_lbls)
+
 		self.__score_fn = score_fn
 
 	@property
@@ -82,24 +85,29 @@ class DrugDrugInteractionNetworkR(nn.Module):
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2)
 
-		se_vec = self.dropout(self.side_effect_emb(se_idx))
-		se_head_proj = self.dropout(self.se_head_proj_w.index_select(0, se_idx))
-		se_tail_proj = self.dropout(self.se_tail_proj_w.index_select(0, se_idx))
+		if self.side_effect_emb is not None:
+			se_vec = self.dropout(self.side_effect_emb(se_idx))
+			se_head_proj = self.dropout(self.se_head_proj_w.index_select(0, se_idx))
+			se_tail_proj = self.dropout(self.se_tail_proj_w.index_select(0, se_idx))
 
-		hvecs0 = [se_vec, d1_vec, d2_vec]
-		d1_vec = d1_vec.index_select(0, drug_se_seg)
-		d2_vec = d2_vec.index_select(0, drug_se_seg)
-		#score, hvecs = self.scoring_fn(d1_vec, d2_vec, se_vec, se_head_proj, se_tail_proj)
-		fwd_score, hvecs1 = self.cal_translation_score(
-			head=d1_vec, tail=d2_vec, rel=se_vec,
-			head_proj=se_head_proj, tail_proj=se_tail_proj)
-		bwd_score, hvecs2 = self.cal_translation_score(
-			head=d2_vec, tail=d1_vec, rel=se_vec,
-			head_proj=se_head_proj, tail_proj=se_tail_proj)
-		score = fwd_score + bwd_score
-		norm_loss = sum([self.cal_vec_norm_loss(v) for v in hvecs0 + hvecs1 + hvecs2])
+			hvecs0 = [se_vec, d1_vec, d2_vec]
+			d1_vec = d1_vec.index_select(0, drug_se_seg)
+			d2_vec = d2_vec.index_select(0, drug_se_seg)
+			#score, hvecs = self.scoring_fn(d1_vec, d2_vec, se_vec, se_head_proj, se_tail_proj)
+			fwd_score, hvecs1 = self.cal_translation_score(
+				head=d1_vec, tail=d2_vec, rel=se_vec,
+				head_proj=se_head_proj, tail_proj=se_tail_proj)
+			bwd_score, hvecs2 = self.cal_translation_score(
+				head=d2_vec, tail=d1_vec, rel=se_vec,
+				head_proj=se_head_proj, tail_proj=se_tail_proj)
+			score = fwd_score + bwd_score
+			norm_loss = sum([self.cal_vec_norm_loss(v) for v in hvecs0 + hvecs1 + hvecs2])
 
-		return score, norm_loss
+			return score, norm_loss
+		else:
+			pred1 = self.lbl_predict(d1_vec)
+			pred2 = self.lbl_predict(d2_vec)
+			return (pred1, pred2)
 
 	def atom_comp(self, atom_feat, atom_idx):
 		atom_emb = self.atom_emb(atom_idx)

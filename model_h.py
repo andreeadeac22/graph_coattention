@@ -20,6 +20,7 @@ class DrugDrugInteractionNetworkH(nn.Module):
 		self.atom_proj = nn.Linear(d_node + d_atom_feat, d_node)
 		self.atom_emb = nn.Embedding(n_atom_type, d_node, padding_idx=0)
 		self.bond_emb = nn.Embedding(n_bond_type, d_edge, padding_idx=0)
+		
 		self.side_effect_emb = nn.Embedding(n_side_effect, d_hid)
 		self.side_effect_norm_emb = nn.Embedding(n_side_effect, d_hid)
 		nn.init.xavier_normal_(self.atom_emb.weight)

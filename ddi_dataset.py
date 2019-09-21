@@ -2,7 +2,7 @@ import numpy as np
 import torch.utils.data
 
 
-def collate_paired_batch(paired_batch):
+def ddi_collate_paired_batch(paired_batch):
     pos_batch = []
     neg_batch = []
     seg_pos_neg = []
@@ -18,13 +18,13 @@ def collate_paired_batch(paired_batch):
 
     seg_pos_neg = torch.LongTensor(np.array(seg_pos_neg))
 
-    pos_batch = collate_batch(pos_batch, return_label=False)
-    neg_batch = collate_batch(neg_batch, return_label=False)
+    pos_batch = ddi_collate_batch(pos_batch, return_label=False)
+    neg_batch = ddi_collate_batch(neg_batch, return_label=False)
 
     return pos_batch, neg_batch, seg_pos_neg
 
 
-def collate_batch(batch, return_label):
+def ddi_collate_batch(batch, return_label):
     drug1, drug2, se_idx_lists, label = list(zip(*batch))
 
     ddi_idxs1, ddi_idxs2 = collate_drug_pairs(drug1, drug2)

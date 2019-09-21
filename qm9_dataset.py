@@ -2,43 +2,15 @@ import numpy as np
 import torch.utils.data
 
 
-def collate_paired_batch(paired_batch):
-    pos_batch = []
-    neg_batch = []
-    seg_pos_neg = []
-    pos_se_i = 0
-    for ddi_pair in paired_batch:
-        pos_ddi, neg_ddis = ddi_pair
-        pos_batch += [pos_ddi] # flatten negative instances
-        neg_batch += neg_ddis
-        *_, pos_ses, _ = pos_ddi
-        for _ in range(len(pos_ses)):
-            seg_pos_neg += [pos_se_i] * len(neg_ddis)
-            pos_se_i += 1
-
-    seg_pos_neg = torch.LongTensor(np.array(seg_pos_neg))
-
-    pos_batch = collate_batch(pos_batch, return_label=False)
-    neg_batch = collate_batch(neg_batch, return_label=False)
-
-    return pos_batch, neg_batch, seg_pos_neg
-
-
-def collate_batch(batch, return_label):
-    drug1, drug2, se_idx_lists, label = list(zip(*batch))
-
+def qm9_collate_batch(batch):
+    drug1, drug2, label1, label2 = list(zip(*batch))
     ddi_idxs1, ddi_idxs2 = collate_drug_pairs(drug1, drug2)
     drug1 = (*collate_drugs(drug1), *ddi_idxs1)
     drug2 = (*collate_drugs(drug2), *ddi_idxs2)
 
-    se_idx, se_seg = collate_side_effect(se_idx_lists)
-
-    if return_label:
-        label = np.hstack([
-            [label_i] * len(ses_i) for ses_i, label_i in zip(se_idx_lists, label)])
-        return (*drug1, *drug2, se_idx, se_seg, label)
-    else:
-        return (*drug1, *drug2, se_idx, se_seg)
+    labels1 = collate_labels(label1)
+    labels2 = collate_labels(label2)
+    return (*drug1, *drug2, labels1, labels2)
 
 
 def collate_drug_pairs(drugs1, drugs2):
@@ -61,11 +33,9 @@ def collate_drug_pairs(drugs1, drugs2):
     return (ddi_seg_i1, ddi_idx_j1), (ddi_seg_i2, ddi_idx_j2)
 
 
-def collate_side_effect(se_idx_lists):
-    se_idx = torch.LongTensor(np.hstack(se_idx_lists).astype(np.int64))
-    se_seg = np.hstack([[i] * len(ses_i) for i, ses_i in enumerate(se_idx_lists)])
-    se_seg = torch.LongTensor(se_seg)
-    return se_idx, se_seg
+def collate_labels(labels):
+    concat_labels = torch.LongTensor(np.hstack(labels).astype(np.int64))
+    return concat_labels
 
 
 def collate_drugs(drugs):
@@ -92,14 +62,7 @@ class QM9Dataset(torch.utils.data.Dataset):
 
         assert pairs_dataset
         self.graph_dict = graph_dict
-        """
-        print("Drug struct dict ")
-        with open("drug_struct_dict.txt", "w") as filename1:
-            for drug in drug_structure_dict:
-                print(drug, drug_structure_dict[se], file=filename1)
-        """
         self.graph_idx_list = list(graph_dict.keys())
-
         self.feeding_insts = pairs_dataset
 
 
@@ -117,4 +80,4 @@ class QM9Dataset(torch.utils.data.Dataset):
         drug_idx1, drug_idx2, label1, label2 = instance
         drug1 = self.drug_structure_dict[drug_idx1]
         drug2 = self.drug_structure_dict[drug_idx2]
-        return drug1, drug2, se_idx_lists, label
+        return drug1, drug2, label1, label2

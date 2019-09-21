@@ -12,8 +12,8 @@ import numpy as np
 import torch
 import torch.utils.data
 
-from qm9_dataset import QM9Dataset
-from ddi_dataset import collate_paired_batch, PolypharmacyDataset, collate_batch
+from qm9_dataset import QM9Dataset, qm9_collate_batch
+from ddi_dataset import ddi_collate_paired_batch, PolypharmacyDataset, ddi_collate_batch
 from utils.file_utils import setup_running_directories, save_experiment_settings
 from utils.functional_utils import combine, build_qm9_dataset
 
@@ -44,7 +44,7 @@ def prepare_qm9_dataloaders(opt):
 		),
 		num_workers = 2,
 		batch_size = opt.batch_size,
-		collate_fn = collate_fn, #TODO
+		collate_fn = qm9_collate_batch, #TODO
 		shuffle = True)
 	valid_loader = torch.util.data.DataLoader(
 		QM9Dataset(
@@ -53,7 +53,7 @@ def prepare_qm9_dataloaders(opt):
 		),
 		num_workers = 2,
 		batch_size = opt.batch_size,
-		collate_fn = collate_fn,
+		collate_fn = qm9_collate_batch,
 		shuffle = True)
 	return train_loader, valid_loader
 
@@ -71,7 +71,7 @@ def prepare_ddi_dataloaders(opt):
 			n_max_batch_se=10),
 		num_workers=2,
 		batch_size=opt.batch_size,
-		collate_fn=collate_paired_batch,
+		collate_fn=ddi_collate_paired_batch,
 		shuffle=True)
 
 	valid_loader = torch.utils.data.DataLoader(
@@ -83,7 +83,7 @@ def prepare_ddi_dataloaders(opt):
 			n_max_batch_se=1),
 		num_workers=2,
 		batch_size=opt.batch_size,
-		collate_fn=lambda x: collate_batch(x, return_label=True))
+		collate_fn=lambda x: ddi_collate_batch(x, return_label=True))
 	return train_loader, valid_loader
 
 
@@ -201,7 +201,6 @@ def main():
 		                                      labels_dict2=opt.train_labels_dict,
 		                                      repetitions=opt.qm9_pairing_repetitions)
 
-
 		#TODO Need to build custom dataset class which feeds in pairs.
 		dataloaders = prepare_qm9_dataloaders(opt)
 
@@ -232,6 +231,44 @@ def main():
 		dataloaders = prepare_ddi_dataloaders(opt)
 
 	save_experiment_settings(opt)
+
+	# build model
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+	if torch.cuda.is_available():
+		print("using cuda")
+	else:
+		print("on cpu")
+
+	if opt.transR:
+		from model_r import DrugDrugInteractionNetworkR as DrugDrugInteractionNetwork
+	elif opt.transH:
+		from model_h import DrugDrugInteractionNetworkH as DrugDrugInteractionNetwork
+	else:
+		from model import DrugDrugInteractionNetwork
+
+	model = DrugDrugInteractionNetwork(
+		n_side_effect=opt.n_side_effect,
+		n_atom_type=100,
+		n_bond_type=20,
+		d_node=opt.d_hid,
+		d_edge=opt.d_hid,
+		d_atom_feat=3,
+		d_hid=opt.d_hid,
+		n_head=opt.n_attention_head,
+		n_prop_step=opt.n_prop_step,
+		dropout=opt.dropout,
+		score_fn=opt.score_fn).to(device)
+
+	if is_resume_training:
+		trained_state = torch.load(opt.best_model_pkl)
+		opt.global_step = trained_state['global_step']
+		logging.info(
+			'Load trained model @ step %d from file: %s',
+			opt.global_step, opt.best_model_pkl)
+		model.load_state_dict(trained_state['model'])
+
+	train(model, dataloaders, device, opt)
 
 
 if __name__ == "__main__":

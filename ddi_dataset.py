@@ -163,7 +163,6 @@ class PolypharmacyDataset(torch.utils.data.Dataset):
         return pos_ddis
 
     def prepare_feeding_insts(self):
-
         def collect_with_proper_size_se(ddis, inst_label):
             ''' To reduce the duplicated computing on same graph pair for different labels. '''
             # split number of ses in k * batch(ses) to account
@@ -202,6 +201,7 @@ class PolypharmacyDataset(torch.utils.data.Dataset):
             feeding_insts = pos_insts + neg_insts
 
         self.feeding_insts = feeding_insts
+
 
     def __len__(self):
         return len(self.feeding_insts)

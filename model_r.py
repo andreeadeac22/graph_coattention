@@ -109,14 +109,17 @@ class DrugDrugInteractionNetworkR(nn.Module):
 			pred2 = self.lbl_predict(d2_vec)
 			return (pred1, pred2)
 
+
 	def atom_comp(self, atom_feat, atom_idx):
 		atom_emb = self.atom_emb(atom_idx)
 		node = self.atom_proj(torch.cat([atom_emb, atom_feat], -1))
 		return node
 
+
 	def cal_vec_norm_loss(self, vec, dim=1):
 		norm = torch.norm(vec, dim=dim)
 		return torch.mean(F.relu(norm - 1))
+
 
 	def cal_translation_score(self, head, tail, rel, head_proj, tail_proj):
 		proj_head = torch.bmm(head_proj, head.unsqueeze(-1)).view_as(head)

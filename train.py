@@ -134,6 +134,7 @@ def train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 				F.normalize(model.side_effect_norm_emb.weight))
 
 		# move to GPU if needed
+		#TODO: qm9 doesn't have positive and negative
 		pos_batch, neg_batch, seg_pos_neg = batch
 		pos_batch = [v.to(device) for v in pos_batch]
 		neg_batch = [v.to(device) for v in neg_batch]
@@ -358,6 +359,7 @@ def main():
 	opt.n_atom_type = data_opt.n_atom_type
 	opt.n_bond_type = data_opt.n_bond_type
 	opt.graph_dict = data_opt.graph_dict
+	print(len(opt.graph_dict))
 	opt.n_side_effect = None
 
 	if "qm9" in opt.dataset:

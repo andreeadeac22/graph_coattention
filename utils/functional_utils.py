@@ -15,28 +15,21 @@ def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2):
 	random.shuffle(kv_list2)
 	assert kv_list1 != kv_list2
 
-	paired_graphs = []
-	paired_labels = []
+	dataset = []
 	for i, key1, val1 in enumerate(kv_list1):
 		# i-th key in kv_list1
-
 		key2 = kv_list2[i].first
 		val2 = kv_list2[i].second
 
-		paired_graphs.append((key1, val1, key2, val2))
-
 		label1 = labels_dict1[key1]
 		label2 = labels_dict2[key2]
-		paired_labels.append((label1, label2))
-
-	return paired_graphs, paired_labels
+		dataset.append(key1,key2,label1,label2)
+	return dataset
 
 def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions):
-	all_graphs = []
-	all_labels = []
+	datasets = []
 	for i in range(repetitions):
-		paired_graphs, paired_labels = \
+		dataset = \
 			pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2)
-		all_graphs.extend(paired_graphs)
-		all_labels.extend(paired_labels)
-	return all_graphs, all_labels
+		datasets.extend(dataset)
+	return datasets

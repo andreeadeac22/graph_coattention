@@ -88,17 +88,9 @@ class QM9Dataset(torch.utils.data.Dataset):
     def __init__(
             self,
             graph_dict,
-            pairs_dataset=None,
-            n_max_batch_se=1):
+            pairs_dataset=None):
 
         assert pairs_dataset
-
-        """
-        print("Se idx dict ")
-        with open("se_idx_dict.txt", "w") as filename:
-            for se in se_idx_dict:
-                print(se, se_idx_dict[se], file=filename)
-        """
         self.graph_dict = graph_dict
         """
         print("Drug struct dict ")
@@ -108,27 +100,7 @@ class QM9Dataset(torch.utils.data.Dataset):
         """
         self.graph_idx_list = list(graph_dict.keys())
 
-        self.feeding_insts = None
-        self.prepare_feeding_insts()
-
-
-    def prepare_feeding_insts(self):
-
-        def collect_with_proper_size_se(ddis, inst_label):
-	        # TODO: need to build list of (dp, label1, label2)
-            ddis = dict(ddis)
-            inst_list = []
-            for dp, ses in ddis.items():
-                n_se_batch = int(np.ceil(len(ses) / self.n_inst_batch_se))
-                for i in range(n_se_batch):
-                    start = i * self.n_inst_batch_se
-                    end = (i+1) * self.n_inst_batch_se
-                    inst_list += [(*dp, ses[start: end], inst_label)]
-            return inst_list
-
-        pos_insts = collect_with_proper_size_se(self.pos_ddis, inst_label=True)
-        feeding_insts = pos_insts
-        self.feeding_insts = feeding_insts
+        self.feeding_insts = pairs_dataset
 
 
     def __len__(self):
@@ -142,7 +114,7 @@ class QM9Dataset(torch.utils.data.Dataset):
 
 
     def drug_structure_lookup(self, instance):
-        drug_idx1, drug_idx2, se_idx_lists, label = instance
+        drug_idx1, drug_idx2, label1, label2 = instance
         drug1 = self.drug_structure_dict[drug_idx1]
         drug2 = self.drug_structure_dict[drug_idx2]
         return drug1, drug2, se_idx_lists, label

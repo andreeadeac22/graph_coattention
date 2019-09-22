@@ -21,6 +21,15 @@ source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 pip install --no-index -r requirements.txt
 
+
+source tesa/bin/activate
+pip freeze > requirements.txt
+mkdir dependencies
+cd dependencies
+pip download -r requirements.txt
+#  add at top of requirements.txt
+-f ./dependencies/
+
 # 2. Copy your dataset on the compute node
 mkdir $SLURM_TMPDIR/cora
 cp $scratch/graph-ode/data/cora/* $SLURM_TMPDIR/cora

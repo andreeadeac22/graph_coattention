@@ -5,28 +5,15 @@ import torch.utils.data
 def qm9_collate_batch(batch):
 	#print(batch)
 	drug1, drug2, label1, label2 = list(zip(*batch))
-	print("drug1 ",len(drug1))
-	print("drug2 ",len(drug2))
-	print("label1 ",len(label1))
-	print("label2 ",len(label2))
-
-	#print("label2 ", label2)
 
 	ddi_idxs1, ddi_idxs2 = collate_drug_pairs(drug1, drug2)
 	drug1 = (*collate_drugs(drug1), *ddi_idxs1)
 	drug2 = (*collate_drugs(drug2), *ddi_idxs2)
 
-	labels1 = collate_labels(label1)
-	labels2 = collate_labels(label2)
-	print("drug1 ", len(drug1))
-	print("drug2 ", len(drug2))
-	print("labels1 ", len(labels1))
-	print("labels2 ", len(labels2))
+	label1 = collate_labels(label1)
+	label2 = collate_labels(label2)
 
-	#print("labels2 ", labels2)
-
-
-	return (*drug1, *drug2, labels1, labels2)
+	return (*drug1, *drug2, label1, label2)
 
 
 def collate_drug_pairs(drugs1, drugs2):
@@ -50,7 +37,7 @@ def collate_drug_pairs(drugs1, drugs2):
 
 
 def collate_labels(labels):
-	concat_labels = torch.LongTensor(np.hstack(labels))
+	concat_labels = torch.Tensor(np.stack(labels))
 	return concat_labels
 
 
@@ -75,8 +62,6 @@ class QM9Dataset(torch.utils.data.Dataset):
 			self,
 			graph_dict,
 			pairs_dataset=None):
-
-		print(len(graph_dict))
 		assert pairs_dataset
 		self.graph_dict = graph_dict
 		self.graph_idx_list = list(graph_dict.keys())

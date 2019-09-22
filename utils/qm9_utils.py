@@ -60,6 +60,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 	start = time.time()
 	avg_training_loss = AverageMeter()
+	loss_fn = nn.L1Loss()
 
 	data_train.dataset.prepare_feeding_insts()
 	for batch in tqdm(data_train, mininterval=3, leave=False, desc='  - (Training)   '):
@@ -68,20 +69,15 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		optimizer.zero_grad()
 		update_learning_rate(optimizer, opt.learning_rate, opt.global_step)
 
-		# move to GPU if needed
-		batch = [v.to(device) for v in batch]
+		#TODO move to GPU if needed
+		#batch = [v.to(device) for v in batch]
 		*batch, labels1, labels2 = batch
 
-		#print("labels1 ",labels1, len(labels1))
-		#print("labels2 ",labels2, len(labels2))
-
-
 		# forward
-		predictions, *pos_loss = model(*batch)
+		pred1, pred2 = model(*batch)
 
-		#TODO: pass labels to loss fn
-		loss1 = metrics.mean_absolute_error(labels1, predictions[0])
-		loss2 = metrics.mean_absolute_error(labels2, predictions[1])
+		loss1 = loss_fn(pred1, labels1)
+		loss2 = loss_fn(pred2, labels2)
 
 		loss = loss1 + loss2
 
@@ -91,8 +87,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 		# booking
 		averaged_model = update_avg_model(model, averaged_model)
-		sz_b = batch.size(0)
-		avg_training_loss.update(loss.detach(), sz_b)
+		avg_training_loss.update(loss.detach(), 128)
 		opt.global_step += 1
 
 	used_time = (time.time() - start) / 60

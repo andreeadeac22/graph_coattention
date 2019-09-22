@@ -12,7 +12,7 @@ class DrugDrugInteractionNetworkR(nn.Module):
 			d_node, d_edge, d_atom_feat, d_hid,
 			n_prop_step,
 			n_side_effect=None,
-			n_lbls = 13,
+			n_lbls = 12,
 			n_head=1, dropout=0.1,
 			update_method='res', score_fn='trans'):
 
@@ -107,7 +107,7 @@ class DrugDrugInteractionNetworkR(nn.Module):
 		else:
 			pred1 = self.lbl_predict(d1_vec)
 			pred2 = self.lbl_predict(d2_vec)
-			return (pred1, pred2)
+			return pred1, pred2
 
 
 	def atom_comp(self, atom_feat, atom_idx):

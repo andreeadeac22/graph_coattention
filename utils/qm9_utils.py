@@ -69,9 +69,8 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		optimizer.zero_grad()
 		update_learning_rate(optimizer, opt.learning_rate, opt.global_step)
 
-		#TODO move to GPU if needed
-		#batch = [v.to(device) for v in batch]
 		*batch, labels1, labels2 = batch
+		batch = [v.to(device) for v in batch]
 
 		# forward
 		pred1, pred2 = model(*batch)
@@ -81,6 +80,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 		loss = loss1 + loss2
 
+		print("Loss ", loss)
 		# backward
 		loss.backward()
 		optimizer.step()
@@ -101,18 +101,18 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	start = time.time()
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
-			batch = [v.to(device) for v in batch] # move to GPU if needed
+			*batch, labels1, labels2 = batch
+			batch = [v.to(device) for v in batch]
 			# forward
-			predictions, *pos_loss = model(*batch)
+			pred1, pred2 = model(*batch)
 			# bookkeeping
-			label += [batch_label]
+			#TODO fix validation
+			labels += [batch_label]
 			score += [batch_score]
 
 	cpu = torch.device("cpu")
 	label = np.hstack(label)
 	score = np.hstack([s.to(cpu) for s in score])
-
-	pred = score > instance_threshold
 
 	# calculate the performance
 	performance = {

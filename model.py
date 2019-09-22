@@ -54,7 +54,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 			inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom_type2, atom_feat2, bond_type2,
 			inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
-			se_idx, drug_se_seg):
+			se_idx=None, drug_se_seg=None):
 
 		atom1 = self.dropout(self.atom_comp(atom_feat1, atom_type1))
 		atom2 = self.dropout(self.atom_comp(atom_feat2, atom_type2))
@@ -66,10 +66,10 @@ class DrugDrugInteractionNetwork(nn.Module):
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2)
 
-		d1_vec = d1_vec.index_select(0, drug_se_seg)
-		d2_vec = d2_vec.index_select(0, drug_se_seg)
-
 		if self.side_effect_emb is not None:
+			d1_vec = d1_vec.index_select(0, drug_se_seg)
+			d2_vec = d2_vec.index_select(0, drug_se_seg)
+
 			se_vec = self.dropout(self.side_effect_emb(se_idx))
 
 			fwd_score = self.cal_translation_score(

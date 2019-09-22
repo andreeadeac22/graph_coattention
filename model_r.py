@@ -73,7 +73,7 @@ class DrugDrugInteractionNetworkR(nn.Module):
 			inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom_type2, atom_feat2, bond_type2,
 			inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
-			se_idx, drug_se_seg):
+			se_idx=None, drug_se_seg=None):
 
 		atom1 = self.dropout(self.atom_comp(atom_feat1, atom_type1))
 		atom2 = self.dropout(self.atom_comp(atom_feat2, atom_type2))

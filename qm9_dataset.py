@@ -3,13 +3,29 @@ import torch.utils.data
 
 
 def qm9_collate_batch(batch):
+	#print(batch)
 	drug1, drug2, label1, label2 = list(zip(*batch))
+	print("drug1 ",len(drug1))
+	print("drug2 ",len(drug2))
+	print("label1 ",len(label1))
+	print("label2 ",len(label2))
+
+	#print("label2 ", label2)
+
 	ddi_idxs1, ddi_idxs2 = collate_drug_pairs(drug1, drug2)
 	drug1 = (*collate_drugs(drug1), *ddi_idxs1)
 	drug2 = (*collate_drugs(drug2), *ddi_idxs2)
 
 	labels1 = collate_labels(label1)
 	labels2 = collate_labels(label2)
+	print("drug1 ", len(drug1))
+	print("drug2 ", len(drug2))
+	print("labels1 ", len(labels1))
+	print("labels2 ", len(labels2))
+
+	#print("labels2 ", labels2)
+
+
 	return (*drug1, *drug2, labels1, labels2)
 
 

@@ -72,15 +72,18 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		batch = [v.to(device) for v in batch]
 		*batch, labels1, labels2 = batch
 
-		print("labels1 ",labels1, len(labels1))
-		print("labels2 ",labels2, len(labels2))
+		#print("labels1 ",labels1, len(labels1))
+		#print("labels2 ",labels2, len(labels2))
 
 
 		# forward
 		predictions, *pos_loss = model(*batch)
 
 		#TODO: pass labels to loss fn
-		loss = metrics.mean_absolute_error(labels, predictions)
+		loss1 = metrics.mean_absolute_error(labels1, predictions[0])
+		loss2 = metrics.mean_absolute_error(labels2, predictions[1])
+
+		loss = loss1 + loss2
 
 		# backward
 		loss.backward()

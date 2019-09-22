@@ -62,8 +62,7 @@ def prepare_qm9_dataloaders(opt):
 			pairs_dataset = opt.valid_dataset),
 		num_workers = 2,
 		batch_size = opt.batch_size,
-		collate_fn = qm9_collate_batch,
-		shuffle = True)
+		collate_fn = qm9_collate_batch)
 	return train_loader, valid_loader
 
 

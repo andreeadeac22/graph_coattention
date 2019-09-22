@@ -2,6 +2,7 @@ import time
 import random
 import numpy as np
 from tqdm import tqdm
+from sklearn import metrics
 
 import torch
 import torch.nn as nn
@@ -53,10 +54,6 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		for param_group in optimizer.param_groups:
 			param_group['lr'] = lr
 
-	def max_margin_loss_fn(pos_eg_score, neg_eg_score, seg_pos_neg, margin=1):
-		pos_eg_score = pos_eg_score.index_select(0, seg_pos_neg)
-		return torch.mean(F.relu(margin - pos_eg_score + neg_eg_score))
-
 	# =================================================================================
 
 	model.train()
@@ -71,29 +68,19 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		optimizer.zero_grad()
 		update_learning_rate(optimizer, opt.learning_rate, opt.global_step)
 
-		if opt.transH:
-			model.side_effect_norm_emb.weight = nn.Parameter(
-				F.normalize(model.side_effect_norm_emb.weight))
-
 		# move to GPU if needed
-		#TODO: qm9 doesn't have positive and negative
-		pos_batch, neg_batch, seg_pos_neg = batch
-		pos_batch = [v.to(device) for v in pos_batch]
-		neg_batch = [v.to(device) for v in neg_batch]
-		seg_pos_neg = seg_pos_neg.to(device)
+		batch = [v.to(device) for v in batch]
+		*batch, labels1, labels2 = batch
+
+		print("labels1 ",labels1, len(labels1))
+		print("labels2 ",labels2, len(labels2))
+
 
 		# forward
-		pos_eg_score, *pos_loss = model(*pos_batch)
-		neg_eg_score, *neg_loss = model(*neg_batch)
+		predictions, *pos_loss = model(*batch)
 
-		assert model.score_fn == 'trans'
-
-		#print("len(pos_eg_score)", len(pos_eg_score))
-
-		loss = max_margin_loss_fn(pos_eg_score, neg_eg_score, seg_pos_neg)
-
-		if pos_loss:
-			loss += sum(pos_loss) + sum(neg_loss)
+		#TODO: pass labels to loss fn
+		loss = metrics.mean_absolute_error(labels, predictions)
 
 		# backward
 		loss.backward()
@@ -101,7 +88,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 		# booking
 		averaged_model = update_avg_model(model, averaged_model)
-		sz_b = seg_pos_neg.size(0)
+		sz_b = batch.size(0)
 		avg_training_loss.update(loss.detach(), sz_b)
 		opt.global_step += 1
 
@@ -116,31 +103,16 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	start = time.time()
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
-			*batch, batch_label = batch
 			batch = [v.to(device) for v in batch] # move to GPU if needed
 			# forward
-			batch_score, *_ = model(*batch)
+			predictions, *pos_loss = model(*batch)
 			# bookkeeping
 			label += [batch_label]
 			score += [batch_score]
-			seidx += [batch[-2]]
 
 	cpu = torch.device("cpu")
 	label = np.hstack(label)
 	score = np.hstack([s.to(cpu) for s in score])
-	seidx = np.hstack([s.to(cpu) for s in seidx])
-
-	if model.score_fn == 'trans':
-		''' Unbounded scores'''
-		if threshold is None:
-			threshold = get_optimal_thresholds_for_rels(seidx, label, score)
-		instance_threshold = threshold[seidx]
-	else:
-		''' logit '''
-		def sigmoid(x):
-			return 1 / (1 + np.exp(-x))
-		score = sigmoid(score) # to prob
-		instance_threshold = np.ones_like(score) * 0.5
 
 	pred = score > instance_threshold
 

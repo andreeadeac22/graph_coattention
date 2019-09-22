@@ -134,21 +134,17 @@ class DrugDrugInteractionNetworkH(nn.Module):
 	def transH_proj(self, original, norm):
 		return original - torch.sum(original * norm, dim=1, keepdim=True) * norm
 
-
 	def atom_comp(self, atom_feat, atom_idx):
 		atom_emb = self.atom_emb(atom_idx)
 		node = self.atom_proj(torch.cat([atom_emb, atom_feat], -1))
 		return node
 
-
 	def cal_translation_score(self, head, tail, rel):
 		return torch.norm(head + rel - tail, dim=1)
-
 
 	def cal_vec_norm_loss(self, vec, dim=1):
 		norm = torch.norm(vec, dim=dim)
 		return torch.mean(F.relu(norm - 1))
-
 
 	def cal_orthogonal_loss(self, rel_emb, norm_emb):
 		a = torch.sum(norm_emb * rel_emb, dim=1, keepdim=True) ** 2

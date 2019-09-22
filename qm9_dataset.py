@@ -34,7 +34,7 @@ def collate_drug_pairs(drugs1, drugs2):
 
 
 def collate_labels(labels):
-	concat_labels = torch.LongTensor(np.hstack(labels).astype(np.int64))
+	concat_labels = torch.LongTensor(np.hstack(labels))
 	return concat_labels
 
 

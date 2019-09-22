@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from tqdm import tqdm
+from sklearn import metrics
 
 import torch
 import torch.nn as nn
@@ -45,7 +46,6 @@ def ddi_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 				F.normalize(model.side_effect_norm_emb.weight))
 
 		# move to GPU if needed
-		#TODO: qm9 doesn't have positive and negative
 		pos_batch, neg_batch, seg_pos_neg = batch
 		pos_batch = [v.to(device) for v in pos_batch]
 		neg_batch = [v.to(device) for v in neg_batch]

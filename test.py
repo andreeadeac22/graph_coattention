@@ -89,16 +89,16 @@ def main():
 	parser = argparse.ArgumentParser()
 
 	# Dirs
-	parser.add_argument('setting_pkl')
 	parser.add_argument('dataset', metavar='D', type=str.lower,
-						choices=['qm9', 'decagon'],
-						help='Name of dataset to used for training [QM9,DECAGON]')
+	                    choices=['qm9', 'decagon'],
+	                    help='Name of dataset to used for training [QM9,DECAGON]')
+	parser.add_argument('setting_pkl')
 	parser.add_argument('-t', '--test_dataset_pkl', default=None)
 	parser.add_argument('-b', '--batch_size', type=int, default=128)
 
 	eval_opt = parser.parse_args()
 
-	test_opt = np.load(eval_opt.setting_pkl).item()
+	test_opt = np.load(eval_opt.setting_pkl, allow_pickle=True).item()
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -110,7 +110,7 @@ def main():
 
 		model, threshold = load_trained_model(test_opt, device)
 
-		test_perf, _ = run_evaluation(model, test_data, device, test_opt, threshold=threshold)
+		test_perf, _ = run_evaluation(model, test_data, device, test_opt)
 		for k,v in test_perf.items():
 			if k!= 'threshold':
 				print(k, v)

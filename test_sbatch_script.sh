@@ -36,7 +36,7 @@ mkdir $SLURM_TMPDIR/$experiment_name
 #    and look for the dataset into $SLURM_TMPDIR
 pwd
 cd graph_coattention/
-python train.py QM9 $scratch/data/qm9/dsgdb9nsd/
+python test.py QM9 $scratch/exp_settings/default-cv_1_10.npy
 
 # 4. Copy whatever you want to save on $SCRATCH
 mkdir -p $scratch/$experiment_name

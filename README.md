@@ -8,7 +8,8 @@ Skeleton:
 
 -train
 
+sbatch train_sbatch_script.sh
 
--evaluation
+-test
 
-#TODO
+sbatch test_sbatch_script.sh

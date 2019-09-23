@@ -123,7 +123,8 @@ def train(model, datasets, device, opt):
 			csv_writer.writerow(['train_loss', 'auroc_valid', 'individual_maes'])
 
 
-	best_valid_perf = 0
+	ddi_best_valid_perf = 0
+	qm9_best_valid_perf = 99999999
 	waited_epoch = 0
 	averaged_model = model.state_dict()
 	for epoch_i in range(opt.n_epochs):
@@ -154,7 +155,8 @@ def train(model, datasets, device, opt):
 
 		# early stoppingf
 
-		if valid_auroc > best_valid_perf:
+		if (opt.dataset == "decagon" and valid_auroc >  best_valid_perf) \
+				or (opt.dataset == "qm9" and valid_auroc < best_valid_perf):
 			logging.info('  --> Better validation result!')
 			waited_epoch = 0
 			torch.save(

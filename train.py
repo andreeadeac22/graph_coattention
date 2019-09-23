@@ -254,9 +254,6 @@ def main():
 		opt.valid_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_graphs.npy", "rb"))
 		opt.valid_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_labels.npy", "rb"))
 
-		opt.test_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_graphs.npy", "rb"))
-		opt.test_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "test_labels.npy", "rb"))
-
 		# pair train-train, valid-train, test-train
 		#TODO start with one copy and compare with multiple
 		opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
@@ -269,13 +266,6 @@ def main():
 		opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
 		                                      graph_dict2=opt.train_graph_dict,
 		                                      labels_dict1=opt.valid_labels_dict,
-		                                      labels_dict2=opt.train_labels_dict,
-		                                      repetitions=opt.qm9_pairing_repetitions)
-
-		# test molecule is first in the pair
-		opt.test_dataset = build_qm9_dataset(graph_dict1=opt.test_graph_dict,
-		                                      graph_dict2=opt.train_graph_dict,
-		                                      labels_dict1=opt.test_labels_dict,
 		                                      labels_dict2=opt.train_labels_dict,
 		                                      repetitions=opt.qm9_pairing_repetitions)
 
@@ -346,8 +336,6 @@ def main():
 		model.load_state_dict(trained_state['model'])
 
 	train(model, dataloaders, device, opt)
-
-	test()
 
 
 if __name__ == "__main__":

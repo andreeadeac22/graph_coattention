@@ -174,8 +174,6 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			# forward
 			pred1, pred2 = model(*batch)
 
-			print("labels1 ", labels1)
-
 			pred1 = torch.reshape(pred1,
 			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			labels1 = torch.reshape(labels1,

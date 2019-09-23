@@ -242,6 +242,8 @@ def main():
 
 	opt = parser.parse_args()
 
+	assert opt.batch_size % opt.qm9_pairing_repetitions == 0
+
 	opt.fold_i, opt.n_fold = map(int, opt.fold.split('/'))
 	assert 0 < opt.fold_i <= opt.n_fold
 

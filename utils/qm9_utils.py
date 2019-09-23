@@ -17,7 +17,8 @@ def scale_labels(pref_min, pref_max, train_data_min, train_data_max, label):
 	return scaled_label
 
 def std_labels(std, mean, label):
-	return label
+	standardised_label = (label - mean)/std
+	return standardised_label
 
 def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="scaled"):
 	minima, maxima, mean, std = get_qm9_stats()
@@ -41,10 +42,9 @@ def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="
 
 		#TODO: check if correct
 		if mode == "scaled":
-			label1 = scale_labels(0,1,minima, maxima, label1)
-			label2 = scale_labels(0,1, minima, maxima, label2)
+			label1 = scale_labels(0, 1, minima, maxima, label1)
+			label2 = scale_labels(0, 1, minima, maxima, label2)
 		else:
-			#TODO implement std
 			label1 = std_labels(std, mean, label1)
 			label2 = std_labels(std, mean, label2)
 

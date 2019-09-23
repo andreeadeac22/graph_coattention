@@ -194,7 +194,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	# calculate the performance
 	performance = {
-		'auroc': overall_losses,
+		'per_feat': overall_losses,
+		'auroc': overall_loss,
 		'threshold': threshold
 	}
 

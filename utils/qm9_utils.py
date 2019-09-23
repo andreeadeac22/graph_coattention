@@ -86,8 +86,9 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 			debug_loss1 = torch.mean(debug_loss1, 0)
 			debug_loss2 = torch.mean(debug_loss2, 0)
 
-			print("At batch_no {0}, loss is {1} and {2}".format(
-				batch_no, debug_loss1, debug_loss2))
+			print()
+			print("At batch_no {0}, loss is \n {1} \n and \n {2}".format(
+				batch_no, debug_loss1.cpu().detach().numpy(), debug_loss2.cpu().detach().numpy()))
 
 		loss1 = loss_fn(pred1, labels1)
 		loss2 = loss_fn(pred2, labels2)
@@ -124,21 +125,21 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			labels1 = labels1.to(device)
 			labels2 = labels2.to(device)
 
+			# forward
+			pred1, pred2 = model(*batch)
+
 			if batch_no % 20 == 0:
 				debug_loss1 = debug_loss_fn(pred1, labels1)
 				debug_loss2 = debug_loss_fn(pred2, labels2)
 
 				debug_loss1 = torch.mean(debug_loss1, 0)
 				debug_loss2 = torch.mean(debug_loss2, 0)
+				print()
+				print("At batch_no {0}, loss is \n {1} \n and \n {2}".format(
+					batch_no, debug_loss1.cpu().detach().numpy(), debug_loss2.cpu().detach().numpy()))
 
-				print("At batch_no {0}, loss is {1} and {2}".format(
-					batch_no, debug_loss1, debug_loss2))
-
-			# forward
-			pred1, pred2 = model(*batch)
 
 			loss = loss_fn(pred1, labels1)
-			print("Loss ", loss)
 
 			overall_loss += loss.detach()
 			batch_no += 1

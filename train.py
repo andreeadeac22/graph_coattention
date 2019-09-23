@@ -123,7 +123,7 @@ def train(model, datasets, device, opt):
 	waited_epoch = 0
 	averaged_model = model.state_dict()
 	for epoch_i in range(opt.n_epochs):
-		logging.info('Epoch %d', epoch_i)
+		print('Epoch %d', epoch_i)
 
 		# ============= Training Phase =============
 		train_loss, elapse, averaged_model = \
@@ -250,6 +250,8 @@ def main():
 	if "qm9" in opt.dataset:
 		opt.train_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_graphs.npy", "rb"))
 		opt.train_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_labels.npy", "rb"))
+
+
 
 		opt.valid_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_graphs.npy", "rb"))
 		opt.valid_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_labels.npy", "rb"))

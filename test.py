@@ -114,7 +114,7 @@ def main():
 		                                     labels_dict1=test_opt.test_labels_dict,
 		                                     labels_dict2=test_opt.train_labels_dict,
 		                                     repetitions=test_opt.qm9_pairing_repetitions)
-		
+
 		test_data = prepare_qm9_testset_dataloader(test_opt)
 
 		model, threshold = load_trained_model(test_opt, device)

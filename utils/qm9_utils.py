@@ -174,8 +174,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 			# Add just debug_loss1 as debug_loss2 is train
 			if all_debug_losses is None:
-				all_debug_losses = \
-					torch.cat((debug_loss1.cpu().detach()), 0)
+				all_debug_losses = debug_loss1.cpu().detach()
 			else:
 				all_debug_losses = torch.cat((all_debug_losses,
 				                debug_loss1.cpu().detach()), 0)

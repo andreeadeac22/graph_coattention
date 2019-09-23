@@ -137,6 +137,7 @@ def train(model, datasets, device, opt):
 		model.load_state_dict(averaged_model)
 
 		valid_perf, elapse = valid_epoch(model, data_valid, device, opt)
+		# AUROC is in fact MAE for QM9
 		valid_auroc = valid_perf['auroc']
 		logging.info('  Validation: %5f, used time: %f min', valid_auroc, elapse)
 		#print_performance_table({k: v for k, v in valid_perf.items() if k != 'threshold'})
@@ -264,12 +265,14 @@ def main():
 		                                      labels_dict2=opt.train_labels_dict,
 		                                      repetitions=opt.qm9_pairing_repetitions)
 
+		# valid molecule is first in the pair
 		opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
 		                                      graph_dict2=opt.train_graph_dict,
 		                                      labels_dict1=opt.valid_labels_dict,
 		                                      labels_dict2=opt.train_labels_dict,
 		                                      repetitions=opt.qm9_pairing_repetitions)
 
+		# test molecule is first in the pair
 		opt.test_dataset = build_qm9_dataset(graph_dict1=opt.test_graph_dict,
 		                                      graph_dict2=opt.train_graph_dict,
 		                                      labels_dict1=opt.test_labels_dict,
@@ -343,6 +346,8 @@ def main():
 		model.load_state_dict(trained_state['model'])
 
 	train(model, dataloaders, device, opt)
+
+	test()
 
 
 if __name__ == "__main__":

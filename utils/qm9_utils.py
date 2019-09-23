@@ -82,7 +82,6 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 		loss = loss1 + loss2
 
-		print("Loss ", loss)
 		# backward
 		loss.backward()
 		optimizer.step()
@@ -99,30 +98,29 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	model.eval()
 
-	score, label, seidx = [], [], []
 	start = time.time()
+	loss_fn = nn.L1Loss()
+	overall_loss = 0
+
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
 			*batch, labels1, labels2 = batch
 			batch = [v.to(device) for v in batch]
+			labels1 = labels1.to(device)
+			labels2 = labels2.to(device)
+
 			# forward
 			pred1, pred2 = model(*batch)
-			# bookkeeping
-			#TODO fix validation
-			labels += [batch_label]
-			score += [batch_score]
 
-	cpu = torch.device("cpu")
-	label = np.hstack(label)
-	score = np.hstack([s.to(cpu) for s in score])
+			loss = loss_fn(pred1, labels1)
+			print("Loss ", loss)
+
+			overall_loss += loss.detach()
+
 
 	# calculate the performance
 	performance = {
-		'auroc': metrics.roc_auc_score(label, score),
-		'avg_p': metrics.average_precision_score(label, score),
-		'f1': metrics.f1_score(label, pred, average='binary'),
-		'p': metrics.precision_score(label, pred, average='binary'),
-		'r': metrics.recall_score(label, pred, average='binary'),
+		'auroc': overall_loss,
 		'threshold': threshold
 	}
 

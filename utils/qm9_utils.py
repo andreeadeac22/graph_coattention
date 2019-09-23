@@ -9,9 +9,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils.functional_utils import AverageMeter, get_optimal_thresholds_for_rels
+from utils.training_data_stats import get_qm9_stats
 
+def scale_labels(pref_min, pref_max, train_data_min, train_data_max, label):
+	scale = (pref_max - pref_min) / (train_data_max - train_data_min)
+	scaled_label = scale * label + pref_min - train_data_min * scale
+	return scaled_label
 
-def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2):
+def std_labels(std, mean, label):
+	return label
+
+def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="scaled"):
+	minima, maxima, mean, std = get_qm9_stats()
+
 	kv_list1 = [(k,v) for k,v in graph_dict1.items()]
 	kv_list2 = [(k,v) for k,v in graph_dict2.items()]
 	random.shuffle(kv_list2)
@@ -28,6 +38,16 @@ def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2):
 
 		label1 = labels_dict1[key1]
 		label2 = labels_dict2[key2]
+
+		#TODO: check if correct
+		if mode == "scaled":
+			label1 = scale_labels(0,1,minima, maxima, label1)
+			label2 = scale_labels(0,1, minima, maxima, label2)
+		else:
+			#TODO implement std
+			label1 = std_labels(std, mean, label1)
+			label2 = std_labels(std, mean, label2)
+
 		dataset.append((key1,key2,label1,label2))
 	return dataset
 

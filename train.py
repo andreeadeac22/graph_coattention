@@ -251,8 +251,6 @@ def main():
 		opt.train_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_graphs.npy", "rb"))
 		opt.train_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "train_labels.npy", "rb"))
 
-
-
 		opt.valid_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_graphs.npy", "rb"))
 		opt.valid_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_labels.npy", "rb"))
 

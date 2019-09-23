@@ -103,7 +103,7 @@ def train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 
 def valid_epoch(model, data_valid, device, opt):
-	if opt.dataset == "decagon":
+	if opt.dataset == "qm9":
 		return qm9_valid_epoch(model, data_valid, device, opt)
 	else:
 		return ddi_valid_epoch(model, data_valid, device, opt)
@@ -227,7 +227,7 @@ def main():
 	is_resume_training = opt.trained_setting_pkl is not None
 	if is_resume_training:
 		logging.info('Resume training from', opt.trained_setting_pkl)
-		opt = np.load(open(opt.trained_setting_pkl, 'rb')).item()
+		opt = np.load(open(opt.trained_setting_pkl, 'rb'), allow_pickle=True).item()
 	else:
 		opt = post_parse_args(opt)
 		setup_running_directories(opt)
@@ -239,7 +239,7 @@ def main():
 	assert os.path.exists(opt.input_data_path + "folds/")
 
 	# code which is common for ddi and qm9. take care(P0) if adding other datasets
-	data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb')).item()
+	data_opt = np.load(open(opt.input_data_path + "input_data.npy",'rb'),allow_pickle=True).item()
 	opt.n_atom_type = data_opt.n_atom_type
 	opt.n_bond_type = data_opt.n_bond_type
 	opt.graph_dict = data_opt.graph_dict

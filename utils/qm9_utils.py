@@ -71,6 +71,8 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 		*batch, labels1, labels2 = batch
 		batch = [v.to(device) for v in batch]
+		labels1 = labels1.to(device)
+		labels2 = labels2.to(device)
 
 		# forward
 		pred1, pred2 = model(*batch)

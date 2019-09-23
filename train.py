@@ -124,7 +124,7 @@ def train(model, datasets, device, opt):
 
 
 	ddi_best_valid_perf = 0
-	qm9_best_valid_perf = 99999999
+	qm9_best_valid_perf = 10
 	waited_epoch = 0
 	averaged_model = model.state_dict()
 	for epoch_i in range(opt.n_epochs):
@@ -155,8 +155,8 @@ def train(model, datasets, device, opt):
 
 		# early stoppingf
 
-		if (opt.dataset == "decagon" and valid_auroc >  best_valid_perf) \
-				or (opt.dataset == "qm9" and valid_auroc < best_valid_perf):
+		if (opt.dataset == "decagon" and valid_auroc >  ddi_best_valid_perf) \
+				or (opt.dataset == "qm9" and valid_auroc < qm9_best_valid_perf):
 			logging.info('  --> Better validation result!')
 			waited_epoch = 0
 			torch.save(
@@ -174,7 +174,10 @@ def train(model, datasets, device, opt):
 
 		# ============= Bookkeeping Phase =============
 		# Keep the validation record
-		best_valid_perf = max(valid_auroc, best_valid_perf)
+		if opt.dataset == "decagon":
+			ddi_best_valid_perf = max(valid_auroc, ddi_best_valid_perf)
+		if opt.dataset == "qm9":
+			qm9_best_valid_perf = min(valid_auroc, qm9_best_valid_perf)
 
 		# Keep all metrics in file
 		with open(opt.result_csv_file, 'a') as csv_file:

@@ -22,7 +22,7 @@ def std_labels(std, mean, label):
 
 def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions, mode="scaled"):
 	kv_list1 = [(k, v) for k, v in graph_dict1.items()]
-	shuffled_lists = {}  # ? yeah, that works :)
+	shuffled_lists = {}
 	kv_list2 = [(k, v) for k, v in graph_dict2.items()]
 
 	for i in range(repetitions):

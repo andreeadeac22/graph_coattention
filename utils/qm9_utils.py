@@ -77,6 +77,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 	batch_no = 0
 
 	all_debug_losses = None
+	print_step = 200 * opt.qm9_pairing_repetitions
 
 	minima, maxima, mean, std, scale = get_qm9_stats(device)
 
@@ -107,7 +108,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		loss2 = loss_fn(pred2, labels2)
 		loss = loss1 + loss2
 
-		if batch_no % 100 == 0:
+		if batch_no % print_step == 0:
 			debug_loss1 = debug_loss_fn(pred1, labels1)
 			debug_loss2 = debug_loss_fn(pred2, labels2)
 
@@ -152,6 +153,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	all_debug_losses = None
 
+	print_step = 100 * opt.qm9_pairing_repetitions
+
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
 			*batch, labels1, labels2 = batch
@@ -177,7 +180,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			labels1 = torch.reshape(labels1,
 			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
-			assert labels1.shape[1] == opt.qm9_output_feat
+			assert labels1.shape[2] == opt.qm9_output_feat
 
 			pred1 = torch.mean(pred1, 0)
 			labels1 = torch.mean(labels1, 0)
@@ -193,7 +196,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 				all_debug_losses = torch.cat((all_debug_losses,
 				                debug_loss1.cpu().detach()), 0)
 
-			if batch_no % 100 == 0:
+			if batch_no % print_step == 0:
 				print_debug_losses = torch.mean(all_debug_losses, 0)
 
 				print()

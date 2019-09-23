@@ -123,7 +123,8 @@ def train(model, datasets, device, opt):
 	waited_epoch = 0
 	averaged_model = model.state_dict()
 	for epoch_i in range(opt.n_epochs):
-		print('Epoch %d', epoch_i)
+		print()
+		print('Epoch ', epoch_i)
 
 		# ============= Training Phase =============
 		train_loss, elapse, averaged_model = \
@@ -219,6 +220,9 @@ def main():
 	parser.add_argument('-nr', '--train_neg_pos_ratio', type=int, default=1)
 	parser.add_argument('-tr', '--transR', action='store_true')
 	parser.add_argument('-th', '--transH', action='store_true')
+
+	parser.add_argument('--qm9_normalise', default="scaled",
+	                    help="How to normalise qm9 data e.g. scaled or standardised")
 
 	opt = parser.parse_args()
 

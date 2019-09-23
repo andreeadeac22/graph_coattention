@@ -6,14 +6,12 @@ from sklearn import metrics
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from utils.functional_utils import AverageMeter, get_optimal_thresholds_for_rels
+from utils.functional_utils import AverageMeter
 from utils.training_data_stats import get_qm9_stats
 
-def scale_labels(pref_min, pref_max, train_data_min, train_data_max, label):
-	scale = (pref_max - pref_min) / (train_data_max - train_data_min)
-	scaled_label = scale * label + pref_min - train_data_min * scale
+def scale_labels(label, train_data_min, train_data_max, scale, pref_min=0, pref_max=1):
+	scaled_label = label * scale + pref_min - train_data_min * scale
 	return scaled_label
 
 def std_labels(std, mean, label):
@@ -21,8 +19,6 @@ def std_labels(std, mean, label):
 	return standardised_label
 
 def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="scaled"):
-	minima, maxima, mean, std = get_qm9_stats()
-
 	kv_list1 = [(k,v) for k,v in graph_dict1.items()]
 	kv_list2 = [(k,v) for k,v in graph_dict2.items()]
 	random.shuffle(kv_list2)
@@ -39,14 +35,6 @@ def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="
 
 		label1 = labels_dict1[key1]
 		label2 = labels_dict2[key2]
-
-		#TODO: check if correct
-		if mode == "scaled":
-			label1 = scale_labels(0, 1, minima, maxima, label1)
-			label2 = scale_labels(0, 1, minima, maxima, label2)
-		else:
-			label1 = std_labels(std, mean, label1)
-			label2 = std_labels(std, mean, label2)
 
 		dataset.append((key1,key2,label1,label2))
 	return dataset
@@ -85,6 +73,9 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 	data_train.dataset.prepare_feeding_insts()
 	batch_no = 0
+
+	minima, maxima, mean, std, scale = get_qm9_stats(device)
+
 	for batch in tqdm(data_train, mininterval=3, leave=False, desc='  - (Training)   '):
 
 		# optimize setup
@@ -92,9 +83,18 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		update_learning_rate(optimizer, opt.learning_rate, opt.global_step)
 
 		*batch, labels1, labels2 = batch
+
 		batch = [v.to(device) for v in batch]
 		labels1 = labels1.to(device)
 		labels2 = labels2.to(device)
+
+		# TODO: check if correct
+		if opt.qm9_normalise == "scaled":
+			labels1 = scale_labels(labels1, minima, maxima, scale)
+			labels2 = scale_labels(labels2, minima, maxima, scale)
+		else:
+			labels1 = std_labels(std, mean, labels1)
+			labels2 = std_labels(std, mean, labels2)
 
 		# forward
 		pred1, pred2 = model(*batch)
@@ -138,12 +138,24 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	debug_loss_fn = nn.L1Loss(reduction='none')
 	batch_no = 0
 
+	minima, maxima, mean, std, scale = get_qm9_stats(device)
+
+
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
 			*batch, labels1, labels2 = batch
+
 			batch = [v.to(device) for v in batch]
 			labels1 = labels1.to(device)
 			labels2 = labels2.to(device)
+
+			# TODO: check if correct
+			if opt.qm9_normalise == "scaled":
+				labels1 = scale_labels(labels1, minima, maxima, scale)
+				labels2 = scale_labels(labels2, minima, maxima, scale)
+			else:
+				labels1 = std_labels(std, mean, labels1)
+				labels2 = std_labels(std, mean, labels2)
 
 			# forward
 			pred1, pred2 = model(*batch)

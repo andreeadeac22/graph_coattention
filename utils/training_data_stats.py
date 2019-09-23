@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 
-def get_qm9_stats():
+def get_qm9_stats(device="cpu"):
 	"""
 	min
 	[ 0.0000000e+00  6.3099999e+00 -4.2860001e-01 -1.7500000e-01
@@ -29,14 +29,20 @@ def get_qm9_stats():
 	labels = list(train_labels_dict.values())
 
 	labels = torch.Tensor(np.stack(labels))
-	print(labels.shape)
 
-	minima = torch.min(labels, 0)[0]
-	maxima = torch.max(labels, 0)[0] # first is values, second indices
+	minima = torch.min(labels, 0)[0].to(device)
+	maxima = torch.max(labels, 0)[0].to(device) # first is values, second indices
 
-	mean = torch.mean(labels, 0)
-	std = torch.std(labels, 0)
+	mean = torch.mean(labels, 0).to(device)
+	std = torch.std(labels, 0).to(device)
 
-	return minima, maxima, mean, std
+	# for min=0, max=1
+	pref_min = 0
+	pref_max = 1
+	scale = (pref_max - pref_min) / (maxima - minima)
+
+	return minima, maxima, mean, std, scale
 
 
+if __name__ == "__main__":
+	get_qm9_stats()

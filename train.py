@@ -204,6 +204,8 @@ def main():
 
 	parser.add_argument('--qm9_pairing_repetitions', default = 1, type=int,
 	                    help="How many times to pair each molecule with a random molecule")
+	parser.add_argument('--qm9_output_feat', default=12, type=int,
+	                    help="How many features need to be predicted for qm9")
 
 	# Dirs
 	parser.add_argument('--model_dir', default='./exp_trained')

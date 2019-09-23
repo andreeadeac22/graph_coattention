@@ -14,38 +14,40 @@ def scale_labels(label, train_data_min, train_data_max, scale, pref_min=0, pref_
 	scaled_label = label * scale + pref_min - train_data_min * scale
 	return scaled_label
 
+
 def std_labels(std, mean, label):
 	standardised_label = (label - mean)/std
 	return standardised_label
 
-def pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2, mode="scaled"):
-	kv_list1 = [(k,v) for k,v in graph_dict1.items()]
-	kv_list2 = [(k,v) for k,v in graph_dict2.items()]
-	random.shuffle(kv_list2)
-	assert kv_list1 != kv_list2
+
+def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions, mode="scaled"):
+	kv_list1 = [(k, v) for k, v in graph_dict1.items()]
+	shuffled_lists = {}  # ? yeah, that works :)
+	kv_list2 = [(k, v) for k, v in graph_dict2.items()]
+
+	for i in range(repetitions):
+		random.shuffle(kv_list2)
+		shuffled_lists[i] = list(kv_list2)
 
 	dataset = []
+
 	for i, kv_pair in enumerate(kv_list1):
 		# i-th key in kv_list1
 		key1 = kv_pair[0]
 		val1 = kv_pair[1]
-
-		key2 = kv_list2[i][0]
-		val2 = kv_list2[i][1]
-
 		label1 = labels_dict1[key1]
-		label2 = labels_dict2[key2]
 
-		dataset.append((key1,key2,label1,label2))
+		for j in range(repetitions):
+			kv_list2 = shuffled_lists[j]
+			assert kv_list1 != kv_list2
+
+			key2 = kv_list2[i][0]
+			val2 = kv_list2[i][1]
+
+			label2 = labels_dict2[key2]
+
+			dataset.append((key1, key2, label1, label2))
 	return dataset
-
-def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions):
-	datasets = []
-	for i in range(repetitions):
-		dataset = \
-			pair_qm9_graphs(graph_dict1, graph_dict2, labels_dict1, labels_dict2)
-		datasets.extend(dataset)
-	return datasets
 
 
 def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
@@ -168,6 +170,18 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 			# forward
 			pred1, pred2 = model(*batch)
+
+			print("labels1 ", labels1)
+
+			pred1 = torch.reshape(pred1,
+			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
+			labels1 = torch.reshape(labels1,
+			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
+			assert labels1.shape[1] == opt.qm9_output_feat
+
+			pred1 = torch.mean(pred1, 0)
+			labels1 = torch.mean(labels1, 0)
+
 			loss = loss_fn(pred1, labels1)
 
 			debug_loss1 = debug_loss_fn(pred1, labels1)

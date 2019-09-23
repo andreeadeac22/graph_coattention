@@ -191,10 +191,13 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			batch_no += 1
 
 	overall_losses = torch.mean(all_debug_losses, 0)
+	print()
+	print("Validation (/test) result ", overall_losses)
+
 
 	# calculate the performance
 	performance = {
-		'per_feat': overall_losses,
+		'individual_maes': overall_losses,
 		'auroc': overall_loss,
 		'threshold': threshold
 	}

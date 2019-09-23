@@ -171,7 +171,7 @@ class MessagePassing(nn.Module):
 
 
 class CoAttentionMessagePassingNetwork(nn.Module):
-	def __init__(self, d_hid, n_prop_step, n_head=1, dropout=0.1, update_method='res'):
+	def __init__(self, d_hid, d_readout, n_prop_step, n_head=1, dropout=0.1, update_method='res'):
 
 		super().__init__()
 
@@ -203,7 +203,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			for step_i in range(n_prop_step)])
 
 		self.pre_readout_proj = nn.Sequential(
-			nn.Linear(d_hid * x_d_node(n_prop_step), d_hid),
+			nn.Linear(d_hid * x_d_node(n_prop_step), d_readout),
 			nn.LeakyReLU())
 
 	def forward(
@@ -227,8 +227,9 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 
 	def readout(self, node, seg_g):
 		sz_b = seg_g.max() + 1
-		d_h = node.size(1)
 
 		node = self.pre_readout_proj(node)
+		d_h = node.size(1)
+
 		encv = node.new_zeros((sz_b, d_h)).index_add(0, seg_g, node)
 		return encv

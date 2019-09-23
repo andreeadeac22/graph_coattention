@@ -117,7 +117,11 @@ def train(model, datasets, device, opt):
 
 	with open(opt.result_csv_file, 'w') as csv_file:
 		csv_writer = csv.writer(csv_file)
-		csv_writer.writerow(['train_loss', 'auroc_valid'])
+		if opt.dataset == "decagon":
+			csv_writer.writerow(['train_loss', 'auroc_valid'])
+		if opt.dataset == "qm9":
+			csv_writer.writerow(['train_loss', 'auroc_valid', 'individual_maes'])
+
 
 	best_valid_perf = 0
 	waited_epoch = 0
@@ -140,6 +144,8 @@ def train(model, datasets, device, opt):
 		valid_perf, elapse = valid_epoch(model, data_valid, device, opt)
 		# AUROC is in fact MAE for QM9
 		valid_auroc = valid_perf['auroc']
+		if opt.dataset == "qm9":
+			individual_maes = valid_perf['individual_maes']
 		logging.info('  Validation: %5f, used time: %f min', valid_auroc, elapse)
 		#print_performance_table({k: v for k, v in valid_perf.items() if k != 'threshold'})
 
@@ -171,7 +177,11 @@ def train(model, datasets, device, opt):
 		# Keep all metrics in file
 		with open(opt.result_csv_file, 'a') as csv_file:
 			csv_writer = csv.writer(csv_file)
-			csv_writer.writerow([train_loss, valid_auroc])
+			if opt.dataset == "decagon":
+				csv_writer.writerow([train_loss, valid_auroc])
+			if opt.dataset == "qm9":
+				csv_writer.writerow([train_loss, valid_auroc, individual_maes])
+
 
 
 def main():
@@ -204,6 +214,8 @@ def main():
 	parser.add_argument('-b', '--batch_size', type=int, default=128)
 
 	parser.add_argument('-d_h', '--d_hid', type=int, default=32)
+	parser.add_argument('-d_readout', '--d_readout', type=int, default=32)
+
 	parser.add_argument('-d_a', '--d_atom_feat', type=int, default=3)
 	parser.add_argument('-n_p', '--n_prop_step', type=int, default=3)
 	parser.add_argument('-n_h', '--n_attention_head', type=int, default=1)
@@ -212,7 +224,9 @@ def main():
 
 	parser.add_argument('-dbg', '--debug', action='store_true')
 	parser.add_argument('-e', '--n_epochs', type=int, default=10000)
+
 	parser.add_argument('-lr', '--learning_rate', type=float, default=1e-3)
+
 	parser.add_argument('-l2', '--l2_lambda', type=float, default=0)
 	parser.add_argument('-drop', '--dropout', type=float, default=0.1)
 	parser.add_argument('--patience', type=int, default=32)
@@ -326,6 +340,7 @@ def main():
 		d_edge=opt.d_hid,
 		d_atom_feat=3,
 		d_hid=opt.d_hid,
+		d_readout=opt.d_readout,
 		n_head=opt.n_attention_head,
 		n_prop_step=opt.n_prop_step,
 		dropout=opt.dropout,

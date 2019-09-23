@@ -9,6 +9,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 			self,
 			n_atom_type, n_bond_type,
 			d_node, d_edge, d_atom_feat, d_hid,
+			d_readout,
 			n_prop_step,
 			n_side_effect=None,
 			n_lbls = 12,
@@ -31,7 +32,8 @@ class DrugDrugInteractionNetwork(nn.Module):
 			nn.init.xavier_normal_(self.side_effect_emb.weight)
 
 		self.encoder = CoAttentionMessagePassingNetwork(
-			d_hid=d_hid, n_head=n_head, n_prop_step=n_prop_step,
+			d_hid=d_hid, d_readout=d_readout,
+			n_head=n_head, n_prop_step=n_prop_step,
 			update_method=update_method, dropout=dropout)
 		assert update_method == 'res'
 		assert score_fn == 'trans'
@@ -40,7 +42,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		nn.init.xavier_normal_(self.head_proj.weight)
 		nn.init.xavier_normal_(self.tail_proj.weight)
 
-		self.lbl_predict = nn.Linear(d_hid, n_lbls)
+		self.lbl_predict = nn.Linear(d_readout, n_lbls)
 
 		self.__score_fn = score_fn
 

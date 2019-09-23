@@ -74,6 +74,8 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 	data_train.dataset.prepare_feeding_insts()
 	batch_no = 0
 
+	all_debug_losses = None
+
 	minima, maxima, mean, std, scale = get_qm9_stats(device)
 
 	for batch in tqdm(data_train, mininterval=3, leave=False, desc='  - (Training)   '):
@@ -99,20 +101,26 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		# forward
 		pred1, pred2 = model(*batch)
 
-		if batch_no % 20 == 0:
-			debug_loss1 = debug_loss_fn(pred1, labels1)
-			debug_loss2 = debug_loss_fn(pred2, labels2)
-
-			debug_loss1 = torch.mean(debug_loss1, 0)
-			debug_loss2 = torch.mean(debug_loss2, 0)
-
-			print()
-			print("At batch_no {0}, loss is \n {1} \n and \n {2}".format(
-				batch_no, debug_loss1.cpu().detach().numpy(), debug_loss2.cpu().detach().numpy()))
-
 		loss1 = loss_fn(pred1, labels1)
 		loss2 = loss_fn(pred2, labels2)
 		loss = loss1 + loss2
+
+		if batch_no % 100 == 0:
+			debug_loss1 = debug_loss_fn(pred1, labels1)
+			debug_loss2 = debug_loss_fn(pred2, labels2)
+
+			if all_debug_losses is None:
+				all_debug_losses = torch.cat((
+				        debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
+			else:
+				all_debug_losses = torch.cat((all_debug_losses,
+				            debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
+
+			print_debug_losses = torch.mean(all_debug_losses, 0)
+
+			print()
+			print("At batch_no {0}, loss is {1} and individually \n {2} \n".format(
+				batch_no, loss, print_debug_losses.numpy()))
 
 		# backward
 		loss.backward()
@@ -140,6 +148,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	minima, maxima, mean, std, scale = get_qm9_stats(device)
 
+	all_debug_losses = None
 
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
@@ -159,28 +168,34 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 			# forward
 			pred1, pred2 = model(*batch)
-
-			if batch_no % 20 == 0:
-				debug_loss1 = debug_loss_fn(pred1, labels1)
-				debug_loss2 = debug_loss_fn(pred2, labels2)
-
-				debug_loss1 = torch.mean(debug_loss1, 0)
-				debug_loss2 = torch.mean(debug_loss2, 0)
-				print()
-				print("At batch_no {0}, loss is \n {1} \n and \n {2}".format(
-					batch_no, debug_loss1.cpu().detach().numpy(), debug_loss2.cpu().detach().numpy()))
-
-
 			loss = loss_fn(pred1, labels1)
+
+			debug_loss1 = debug_loss_fn(pred1, labels1)
+
+			# Add just debug_loss1 as debug_loss2 is train
+			if all_debug_losses is None:
+				all_debug_losses = \
+					torch.cat((debug_loss1.cpu().detach()), 0)
+			else:
+				all_debug_losses = torch.cat((all_debug_losses,
+				                debug_loss1.cpu().detach()), 0)
+
+			if batch_no % 100 == 0:
+				print_debug_losses = torch.mean(all_debug_losses, 0)
+
+				print()
+				print("At batch_no {0}, loss is \n {1} \n".format(
+					batch_no, print_debug_losses.cpu().detach().numpy()))
+
 
 			overall_loss += loss.detach()
 			batch_no += 1
 
-
+	overall_losses = torch.mean(all_debug_losses, 0)
 
 	# calculate the performance
 	performance = {
-		'auroc': overall_loss,
+		'auroc': overall_losses,
 		'threshold': threshold
 	}
 

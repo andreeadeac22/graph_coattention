@@ -13,12 +13,14 @@ from ddi_dataset import PolypharmacyDataset, ddi_collate_batch
 #from drug_data_util import copy_dataset_from_pkl
 from model import DrugDrugInteractionNetwork
 from train import valid_epoch as run_evaluation
+from utils.qm9_utils import build_qm9_dataset
 
 logging.basicConfig(
 	level=logging.INFO,
 	format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
 	datefmt="%Y-%m-%d %H:%M:%S")
 
+"""
 def pair_qm9_test(test_graph_dict, train_graph_dict, test_labels_dict, train_labels_dict):
 	train_k_list = list(train_graph_dict.keys())
 	test_kv_list = [(k,v) for k,v in test_graph_dict.items()]
@@ -34,13 +36,14 @@ def pair_qm9_test(test_graph_dict, train_graph_dict, test_labels_dict, train_lab
 		train_lbl = train_labels_dict[train_key]
 		dataset.append((test_key,train_key,test_lbl,train_lbl))
 	return dataset
+"""
 
 
 def prepare_qm9_testset_dataloader(opt):
 	test_loader = torch.utils.data.DataLoader(
 		QM9Dataset(
 			graph_dict=opt.graph_dict,
-			pairs_dataset=opt.valid_dataset),
+			pairs_dataset=opt.test_dataset),
 		num_workers=2,
 		batch_size=opt.batch_size,
 		collate_fn=qm9_collate_batch)
@@ -106,6 +109,12 @@ def main():
 		test_opt.test_graph_dict = pickle.load(open(test_opt.input_data_path + "folds/" + "test_graphs.npy", "rb"))
 		test_opt.test_labels_dict = pickle.load(open(test_opt.input_data_path + "folds/" + "test_labels.npy", "rb"))
 
+		test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
+		                                     graph_dict2=test_opt.train_graph_dict,
+		                                     labels_dict1=test_opt.test_labels_dict,
+		                                     labels_dict2=test_opt.train_labels_dict,
+		                                     repetitions=test_opt.qm9_pairing_repetitions)
+		
 		test_data = prepare_qm9_testset_dataloader(test_opt)
 
 		model, threshold = load_trained_model(test_opt, device)

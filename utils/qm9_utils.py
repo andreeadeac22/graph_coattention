@@ -61,8 +61,10 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 	start = time.time()
 	avg_training_loss = AverageMeter()
 	loss_fn = nn.L1Loss()
+	debug_loss_fn = nn.L1Loss(reduction='none')
 
 	data_train.dataset.prepare_feeding_insts()
+	batch_no = 0
 	for batch in tqdm(data_train, mininterval=3, leave=False, desc='  - (Training)   '):
 
 		# optimize setup
@@ -77,9 +79,18 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		# forward
 		pred1, pred2 = model(*batch)
 
+		if batch_no % 20 == 0:
+			debug_loss1 = debug_loss_fn(pred1, labels1)
+			debug_loss2 = debug_loss_fn(pred2, labels2)
+
+			debug_loss1 = torch.mean(debug_loss1, 0)
+			debug_loss2 = torch.mean(debug_loss2, 0)
+
+			print("At batch_no {0}, loss is {1} and {2}".format(
+				batch_no, debug_loss1, debug_loss2))
+
 		loss1 = loss_fn(pred1, labels1)
 		loss2 = loss_fn(pred2, labels2)
-
 		loss = loss1 + loss2
 
 		# backward
@@ -90,6 +101,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		averaged_model = update_avg_model(model, averaged_model)
 		avg_training_loss.update(loss.detach(), 128)
 		opt.global_step += 1
+		batch_no += 1
 
 	used_time = (time.time() - start) / 60
 	return avg_training_loss.get_avg(), used_time, averaged_model
@@ -102,12 +114,25 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	loss_fn = nn.L1Loss()
 	overall_loss = 0
 
+	debug_loss_fn = nn.L1Loss(reduction='none')
+	batch_no = 0
+
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
 			*batch, labels1, labels2 = batch
 			batch = [v.to(device) for v in batch]
 			labels1 = labels1.to(device)
 			labels2 = labels2.to(device)
+
+			if batch_no % 20 == 0:
+				debug_loss1 = debug_loss_fn(pred1, labels1)
+				debug_loss2 = debug_loss_fn(pred2, labels2)
+
+				debug_loss1 = torch.mean(debug_loss1, 0)
+				debug_loss2 = torch.mean(debug_loss2, 0)
+
+				print("At batch_no {0}, loss is {1} and {2}".format(
+					batch_no, debug_loss1, debug_loss2))
 
 			# forward
 			pred1, pred2 = model(*batch)
@@ -116,6 +141,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			print("Loss ", loss)
 
 			overall_loss += loss.detach()
+			batch_no += 1
+
 
 
 	# calculate the performance

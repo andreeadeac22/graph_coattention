@@ -190,8 +190,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			assert labels1.shape[2] == opt.qm9_output_feat
 
-			pred1 = torch.mean(pred1, 0)
-			labels1 = torch.mean(labels1, 0)
+			pred1 = torch.mean(pred1, 1)
+			labels1 = torch.mean(labels1, 1)
 
 			loss = loss_fn(pred1, labels1)
 

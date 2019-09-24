@@ -219,7 +219,8 @@ class CoAttentionMessagePassingNetwork(nn.Module):
                         entropies=[]):
 
 		for step_i in range(self.n_prop_step):
-			entropies.append([])
+			if step_i >= len(entropies):
+				entropies.append([])
 			inner_msg1 = self.mps[step_i](node1, edge1, inn_seg_i1, inn_idx_j1)
 			inner_msg2 = self.mps[step_i](node2, edge2, inn_seg_i2, inn_idx_j2)
 			outer_msg1, outer_msg2 = self.coats[step_i](

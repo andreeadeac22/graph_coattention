@@ -224,7 +224,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			inner_msg2 = self.mps[step_i](node2, edge2, inn_seg_i2, inn_idx_j2)
 			outer_msg1, outer_msg2 = self.coats[step_i](
 				node1, out_seg_i1, out_idx_j1,
-				node2, out_seg_i2, out_idx_j2, entropies[i])
+				node2, out_seg_i2, out_idx_j2, entropies[step_i])
 			node1 = self.lns[step_i](self.update_fn(node1, inner_msg1, outer_msg1))
 			node2 = self.lns[step_i](self.update_fn(node2, inner_msg2, outer_msg2))
 

@@ -24,16 +24,17 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 	kv_list1 = [(k, v) for k, v in graph_dict1.items()]
 	shuffled_lists = {}
 
-	if self_pair:
-		kv_list2 = kv_list1
-		# repetitions should always be one in this case
-		assert repetitions == 1
-		for i in range(repetitions):
-			shuffled_lists[i] = list(kv_list2)
-	else:
-		kv_list2 = [(k, v) for k, v in graph_dict2.items()]
+	kv_list2 = [(k, v) for k, v in graph_dict2.items()]
 
-		for i in range(repetitions):
+
+	if self_pair:
+		shuffled_lists[0] = list(kv_list1)
+	else:
+		random.shuffle(kv_list2)
+		shuffled_lists[0] = list(kv_list2)
+
+	# if pure-mpnn setup, repetitions == 1
+	for i in range(1,repetitions):
 			random.shuffle(kv_list2)
 			shuffled_lists[i] = list(kv_list2)
 
@@ -52,9 +53,6 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 			val2 = kv_list2[i][1]
 
 			label2 = labels_dict2[key2]
-
-			if self_pair:
-				assert  key1 == key2
 
 			dataset.append((key1, key2, label1, label2))
 	return dataset

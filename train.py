@@ -247,8 +247,8 @@ def main():
 	parser.add_argument('--qm9_normalise', default="scaled",
 	                    help="How to normalise qm9 data e.g. scaled or standardised")
 
-	# If mpnn is true, then pair molecule with itself
-	# equivalent with no-coattention
+	# If mpnn is true, then first pairing happens with itself
+	# for repetitions=1, this is mpnn-like.
 	parser.add_argument('--mpnn', action='store_true')
 
 	opt = parser.parse_args()
@@ -287,36 +287,24 @@ def main():
 		opt.valid_graph_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_graphs.npy", "rb"))
 		opt.valid_labels_dict = pickle.load(open(opt.input_data_path + "folds/" + "valid_labels.npy", "rb"))
 
-		if opt.mpnn:
-			#pair molecule with itself
-			opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
-			                                      graph_dict2=opt.train_graph_dict,
-			                                      labels_dict1=opt.train_labels_dict,
-			                                      labels_dict2=opt.train_labels_dict,
-			                                      repetitions=opt.qm9_pairing_repetitions,
-			                                      self_pair=True)
 
-			opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
-			                                      graph_dict2=opt.valid_graph_dict,
-			                                      labels_dict1=opt.valid_labels_dict,
-			                                      labels_dict2=opt.valid_labels_dict,
-			                                      repetitions=opt.qm9_pairing_repetitions,
-			                                      self_pair=True)
-		else:
-			# pair train-train, valid-train, test-train
-			opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
-			                                      graph_dict2=opt.train_graph_dict,
-			                                      labels_dict1=opt.train_labels_dict,
-			                                      labels_dict2=opt.train_labels_dict,
-			                                      repetitions=opt.qm9_pairing_repetitions)
+		if not hasattr(opt, 'mpnn'):
+			opt.mpnn = False
 
-			# valid molecule is first in the pair
-			opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
-			                                      graph_dict2=opt.train_graph_dict,
-			                                      labels_dict1=opt.valid_labels_dict,
-			                                      labels_dict2=opt.train_labels_dict,
-			                                      repetitions=opt.qm9_pairing_repetitions)
+		opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
+		                                      graph_dict2=opt.train_graph_dict,
+		                                      labels_dict1=opt.train_labels_dict,
+		                                      labels_dict2=opt.train_labels_dict,
+		                                      repetitions=opt.qm9_pairing_repetitions,
+		                                      self_pair = opt.mpnn)
 
+		# valid molecule is first in the pair
+		opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
+		                                      graph_dict2=opt.train_graph_dict,
+		                                      labels_dict1=opt.valid_labels_dict,
+		                                      labels_dict2=opt.train_labels_dict,
+		                                      repetitions=opt.qm9_pairing_repetitions,
+		                                      self_pair = opt.mpnn)
 		dataloaders = prepare_qm9_dataloaders(opt)
 
 

@@ -52,7 +52,10 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 			key2 = kv_list2[i][0]
 			val2 = kv_list2[i][1]
 
-			label2 = labels_dict2[key2]
+			if key2 in labels_dict1:
+				label2 = labels_dict2[key2]
+			if key2 in labels_dict1:
+				label2 = labels_dict1[key2]
 
 			dataset.append((key1, key2, label1, label2))
 	return dataset

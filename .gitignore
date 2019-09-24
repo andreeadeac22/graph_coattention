@@ -5,6 +5,9 @@ __pycache__/
 */__pycache__/*
 src/model/__pycache__/*
 
+exp_results/
+exp_settings/
+
 # Input data
 data/
 

@@ -1,7 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-
 .idea/
+
+*/__pycache__/*
+src/model/__pycache__/*
 
 # Input data
 data/

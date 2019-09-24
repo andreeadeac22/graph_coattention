@@ -16,6 +16,7 @@ import torch
 import torch.optim as optim
 import torch.utils.data
 
+from src.model.model import GraphPairNN
 from qm9_dataset import QM9Dataset, qm9_collate_batch
 from ddi_dataset import ddi_collate_paired_batch, \
 	PolypharmacyDataset, ddi_collate_batch
@@ -126,7 +127,7 @@ def train(model, datasets, device, opt):
 		if opt.dataset == "qm9":
 			csv_writer.writerow(['train_loss', 'auroc_valid', 'individual_maes'])
 
-
+	pair_model = GraphPairNN()
 	ddi_best_valid_perf = 0
 	qm9_best_valid_perf = 10
 	waited_epoch = 0

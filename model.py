@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 
+import numpy as np
+
 from modules import CoAttentionMessagePassingNetwork
+from src.model.model import GraphPairNN
 
 
 class DrugDrugInteractionNetwork(nn.Module):
@@ -14,7 +17,8 @@ class DrugDrugInteractionNetwork(nn.Module):
 			n_side_effect=None,
 			n_lbls = 12,
 			n_head=1, dropout=0.1,
-			update_method='res', score_fn='trans'):
+			update_method='res', score_fn='trans',
+			batch_size=128):
 
 		super().__init__()
 
@@ -45,6 +49,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		self.lbl_predict = nn.Linear(d_readout, n_lbls)
 
 		self.__score_fn = score_fn
+		self.pair_model = GraphPairNN(batch_size, batch_size, batch_size)
 
 	@property
 	def score_fn(self):
@@ -57,6 +62,23 @@ class DrugDrugInteractionNetwork(nn.Module):
 			seg_m2, atom_type2, atom_feat2, bond_type2,
 			inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
 			se_idx=None, drug_se_seg=None):
+
+		# generate input indices + padding
+		ind_in = np.arange(0, -(-len(seg_m1) // self.pair_model.out_features) * self.pair_model.out_features)
+		ind_in = np.reshape(shape=(ind_in.shape[0] // self.pair_model.out_features, self.pair_model.out_features))
+		ind_in = torch.from_numpy(ind_in).type(torch.FloatTensor).cuda()
+		ind_out = self.pair_model(ind_in)
+		ind_out = ind_out.reshape(shape=(ind_in.shape[0] * ind_in.shape[1], ind_in.shape[1]))
+		preds = torch.max(ind_out, dim=1)[1].type(torch.LongTensor)
+
+		seg_m2 = seg_m2[preds]
+		atom_type2 = atom_type2[preds]
+		atom_feat2 = atom_feat2[preds]
+		bond_type2 = bond_type2[preds]
+		inn_seg_i2 = inn_seg_i2[preds]
+		inn_idx_j2 = inn_idx_j2[preds]
+		out_seg_i2 = out_seg_i2[preds]
+		out_idx_j2 = out_idx_j2[preds]
 
 		atom1 = self.dropout(self.atom_comp(atom_feat1, atom_type1))
 		atom2 = self.dropout(self.atom_comp(atom_feat2, atom_type2))
@@ -88,7 +110,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		else:
 			pred1 = self.lbl_predict(d1_vec)
 			pred2 = self.lbl_predict(d2_vec)
-			return pred1, pred2
+			return pred1, pred2, preds
 
 
 	def atom_comp(self, atom_feat, atom_idx):

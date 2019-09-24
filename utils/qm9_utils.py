@@ -166,6 +166,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	print_step = 100 * opt.qm9_pairing_repetitions
 
+        all_ents = []
+
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
 			*batch, labels1, labels2 = batch
@@ -182,8 +184,10 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 				labels1 = std_labels(std, mean, labels1)
 				labels2 = std_labels(std, mean, labels2)
 
+                        ents = []
+
 			# forward
-			pred1, pred2 = model(*batch)
+			pred1, pred2 = model(*batch, entropies=ents)
 
 			pred1 = torch.reshape(pred1,
 			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
@@ -216,6 +220,13 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			overall_loss += loss.detach()
 			batch_no += 1
 
+                        # Entropy postprocessing
+                        for lyr, ent in enumerate(ents):
+				if lyr >= len(all_ents):
+					all_ents.append(torch.cat(ent, 0))
+				else:
+					all_ents[lyr] = torch.cat([all_ents[lyr], torch.cat(ent, 0)], 0)
+
 	overall_losses = torch.mean(all_debug_losses, 0)
 	print()
 	print("Validation (/test) result ", overall_losses)
@@ -227,6 +238,12 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 		'auroc': torch.mean(overall_losses),
 		'threshold': threshold
 	}
+        
+        # Can do stuff (e.g. plot histograms) of all_ents
+        # import matplotlib.pyplot as plt
+        # import seaborn as sns
+        # sns.set()
+        # plt.hist(all_ents.cpu().detach().numpy(), n_bins=20)
 
 	used_time = (time.time() - start) / 60
 	return performance, used_time

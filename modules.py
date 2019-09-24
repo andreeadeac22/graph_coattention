@@ -68,7 +68,7 @@ class CoAttention(nn.Module):
 			nn.Linear(d_in * n_head, d_out),
 			nn.LeakyReLU(), nn.Dropout(p=dropout))
 
-	def forward(self, node1, seg_i1, idx_j1, node2, seg_i2, idx_j2):
+	def forward(self, node1, seg_i1, idx_j1, node2, seg_i2, idx_j2, entropy=[]):
 
 		d_h = node1.size(1)
 
@@ -125,6 +125,12 @@ class CoAttention(nn.Module):
 		# Weighted sum
 		msg1 = node1.new_zeros((n_seg1, d_h)).index_add(0, seg_i1, node1_edge * node1_nbr)
 		msg2 = node2.new_zeros((n_seg2, d_h)).index_add(0, seg_i2, node2_edge * node2_nbr)
+
+                # Entropy computation
+                ent1 = node1.new_zeros((n_seg1, 1)).index_add(0, seg_i1, torch.sum(node1_edge * torch.log(node1_edge + 1e-7), -1))
+                ent2 = node2.new_zeros((n_seg2, 1)).index_add(0, seg_i2, torch.sum(node2_edge * torch.log(node2_edge + 1e-7), -1))
+                entropy.append(ent1)
+                entropy.append(ent2)
 
 		if self.multi_head:
 			msg1 = msg1[arg_i1].view(-1, d_h * self.n_head)
@@ -209,14 +215,16 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 	def forward(
 			self,
 			seg_g1, node1, edge1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
-			seg_g2, node2, edge2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2):
+			seg_g2, node2, edge2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
+                        entropies=[]):
 
 		for step_i in range(self.n_prop_step):
+			entropies.append([])
 			inner_msg1 = self.mps[step_i](node1, edge1, inn_seg_i1, inn_idx_j1)
 			inner_msg2 = self.mps[step_i](node2, edge2, inn_seg_i2, inn_idx_j2)
 			outer_msg1, outer_msg2 = self.coats[step_i](
 				node1, out_seg_i1, out_idx_j1,
-				node2, out_seg_i2, out_idx_j2)
+				node2, out_seg_i2, out_idx_j2, entropies[i])
 			node1 = self.lns[step_i](self.update_fn(node1, inner_msg1, outer_msg1))
 			node2 = self.lns[step_i](self.update_fn(node2, inner_msg2, outer_msg2))
 

@@ -56,7 +56,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 			inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom_type2, atom_feat2, bond_type2,
 			inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
-			se_idx=None, drug_se_seg=None):
+			se_idx=None, drug_se_seg=None, entropies=[]):
 
 		atom1 = self.dropout(self.atom_comp(atom_feat1, atom_type1))
 		atom2 = self.dropout(self.atom_comp(atom_feat2, atom_type2))
@@ -66,7 +66,8 @@ class DrugDrugInteractionNetwork(nn.Module):
 
 		d1_vec, d2_vec = self.encoder(
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
-			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2)
+			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
+                        entropies)
 
 		if self.side_effect_emb is not None:
 			d1_vec = d1_vec.index_select(0, drug_se_seg)

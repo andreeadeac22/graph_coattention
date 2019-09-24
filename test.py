@@ -3,6 +3,7 @@ import logging
 import argparse
 import random
 import pprint
+import os
 
 import numpy as np
 import torch
@@ -96,13 +97,20 @@ def main():
 	parser.add_argument('dataset', metavar='D', type=str.lower,
 	                    choices=['qm9', 'decagon'],
 	                    help='Name of dataset to used for training [QM9,DECAGON]')
-	parser.add_argument('setting_pkl')
+	parser.add_argument('--settings', help='Setting, ends in .npy', default=None)
+	parser.add_argument('-mm', '--memo', help='Trained model, ends in .pth', default='default')
+	parser.add_argument('--model_dir', default='./exp_trained')
+
 	parser.add_argument('-t', '--test_dataset_pkl', default=None)
 	parser.add_argument('-b', '--batch_size', type=int, default=128)
 
 	eval_opt = parser.parse_args()
 
+	eval_opt.setting_pkl = os.path.join(eval_opt.model_dir, eval_opt.settings)
+	eval_opt.best_model_pkl = os.path.join(eval_opt.model_dir, eval_opt.memo)
+
 	test_opt = np.load(eval_opt.setting_pkl, allow_pickle=True).item()
+	test_opt.best_model_pkl = eval_opt.best_model_pkl
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -159,3 +167,7 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
+	[0.0023715, 0.00060061, 1.4854e-03, 1.1680e-03, 1.1526e-03, 4.9900e-03,
+	 1.9318e-04, 1.3547e-04, 3.4917e-05, 2.3030e-04, 4.9364e-04, 9.1639e-04]
+

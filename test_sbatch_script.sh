@@ -30,6 +30,7 @@ nvidia-smi
 # 2. Copy your dataset on the compute node
 #mkdir $SLURM_TMPDIR/data
 cp $scratch/graph-coattn-randompair-1/* $SLURM_TMPDIR/
+echo $SLURM_TMPDIR
 ls -l $SLURM_TMPDIR
 #mkdir $SLURM_TMPDIR/$experiment_name
 
@@ -37,7 +38,7 @@ ls -l $SLURM_TMPDIR
 #    and look for the dataset into $SLURM_TMPDIR
 pwd
 cd graph_coattention/
-python test.py QM9 $scratch/graph-coattn-randompair-1/randompair-hid50-readout200-repetitions1-patience8-batch256-cv_1_10.npy
+python test.py QM9 --memo $SLURM_TMPDIR/randompair-hid50-readout200-repetitions1-patience8-batch256-cv_1_10.pth --settings $SLURM_TMPDIR/randompair-hid50-readout200-repetitions1-patience8-batch256-cv_1_10.npy
 
 # 4. Copy whatever you want to save on $SCRATCH
 mkdir -p $scratch/$experiment_name

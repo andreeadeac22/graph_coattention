@@ -44,6 +44,10 @@ def post_parse_args(opt):
 
 	opt.best_model_pkl = os.path.join(opt.model_dir, opt.exp_prefix + '.pth')
 	opt.result_csv_file = os.path.join(opt.result_dir, opt.exp_prefix + '.csv')
+
+	print(opt.best_model_pkl)
+	print(opt.result_csv_file)
+	print(opt.model_dir)
 	return opt
 
 
@@ -153,8 +157,7 @@ def train(model, datasets, device, opt):
 		# Load back the trained weight
 		model.load_state_dict(updated_model) # validation end
 
-		# early stoppingf
-
+		# early stopping
 		if (opt.dataset == "decagon" and valid_auroc >  ddi_best_valid_perf) \
 				or (opt.dataset == "qm9" and valid_auroc < qm9_best_valid_perf):
 			logging.info('  --> Better validation result!')
@@ -186,7 +189,6 @@ def train(model, datasets, device, opt):
 				csv_writer.writerow([train_loss, valid_auroc])
 			if opt.dataset == "qm9":
 				csv_writer.writerow([train_loss, valid_auroc, individual_maes])
-
 
 
 def main():

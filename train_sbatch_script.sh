@@ -30,15 +30,15 @@ nvidia-smi
 # 2. Copy your dataset on the compute node
 #mkdir $SLURM_TMPDIR/data
 #cp -r $scratch/data/ $SLURM_TMPDIR/data
-mkdir $SLURM_TMPDIR/$experiment_name
+#mkdir $SLURM_TMPDIR/$experiment_name
 
 # 3. Launch your job, tell it to save the model in $SLURM_TMPDIR
 #    and look for the dataset into $SLURM_TMPDIR
 pwd
 cd graph_coattention/
-python train.py QM9 $scratch/data/qm9/dsgdb9nsd/ --d_hid 50 --d_readout 200 --qm9_pairing_repetitions 5 --patience 8 --batch_size 120  --memo $SLURM_TMPDIR-randompair-hid50-readout200-repetitions5-patience8-batch120
+python train.py QM9 $scratch/data/qm9/dsgdb9nsd/ --d_hid 50 --d_readout 200 --qm9_pairing_repetitions 5 --patience 8 --batch_size 120 --memo $SLURM_TMPDIR/randompair-hid50-readout200-repetitions5-patience8-batch120
 
 # 4. Copy whatever you want to save on $SCRATCH
 mkdir -p $scratch/$experiment_name
-cp -r $SLURM_TMPDIR/$experiment_name/ $scratch/$experiment_name/
-~
+ls -l $SLURM_TMPDIR
+cp $SLURM_TMPDIR/* $scratch/$experiment_name/

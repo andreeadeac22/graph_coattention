@@ -118,11 +118,19 @@ def main():
 		test_opt.test_graph_dict = pickle.load(open(test_opt.input_data_path + "folds/" + "test_graphs.npy", "rb"))
 		test_opt.test_labels_dict = pickle.load(open(test_opt.input_data_path + "folds/" + "test_labels.npy", "rb"))
 
-		test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
-		                                     graph_dict2=test_opt.train_graph_dict,
-		                                     labels_dict1=test_opt.test_labels_dict,
-		                                     labels_dict2=test_opt.train_labels_dict,
-		                                     repetitions=test_opt.qm9_pairing_repetitions)
+		if test_opt.mpnn:
+			test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
+			                                          graph_dict2=test_opt.test_graph_dict,
+			                                          labels_dict1=test_opt.test_labels_dict,
+			                                          labels_dict2=test_opt.test_labels_dict,
+			                                          repetitions=test_opt.qm9_pairing_repetitions,
+			                                          self_pair=True)
+		else:
+			test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
+			                                     graph_dict2=test_opt.train_graph_dict,
+			                                     labels_dict1=test_opt.test_labels_dict,
+			                                     labels_dict2=test_opt.train_labels_dict,
+			                                     repetitions=test_opt.qm9_pairing_repetitions)
 
 		test_data = prepare_qm9_testset_dataloader(test_opt)
 

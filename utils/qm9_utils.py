@@ -20,14 +20,22 @@ def std_labels(std, mean, label):
 	return standardised_label
 
 
-def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions, mode="scaled"):
+def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions, self_pair=False):
 	kv_list1 = [(k, v) for k, v in graph_dict1.items()]
 	shuffled_lists = {}
-	kv_list2 = [(k, v) for k, v in graph_dict2.items()]
 
-	for i in range(repetitions):
-		random.shuffle(kv_list2)
-		shuffled_lists[i] = list(kv_list2)
+	if self_pair:
+		kv_list2 = kv_list1
+		# repetitions should always be one in this case
+		assert repetitions == 1
+		for i in range(repetitions):
+			shuffled_lists[i] = list(kv_list2)
+	else:
+		kv_list2 = [(k, v) for k, v in graph_dict2.items()]
+
+		for i in range(repetitions):
+			random.shuffle(kv_list2)
+			shuffled_lists[i] = list(kv_list2)
 
 	dataset = []
 
@@ -39,12 +47,14 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 
 		for j in range(repetitions):
 			kv_list2 = shuffled_lists[j]
-			assert kv_list1 != kv_list2
 
 			key2 = kv_list2[i][0]
 			val2 = kv_list2[i][1]
 
 			label2 = labels_dict2[key2]
+
+			if self_pair:
+				assert  key1 == key2
 
 			dataset.append((key1, key2, label1, label2))
 	return dataset

@@ -127,7 +127,6 @@ def train(model, datasets, device, opt):
 		if opt.dataset == "qm9":
 			csv_writer.writerow(['train_loss', 'auroc_valid', 'individual_maes'])
 
-	pair_model = GraphPairNN()
 	ddi_best_valid_perf = 0
 	qm9_best_valid_perf = 10
 	waited_epoch = 0

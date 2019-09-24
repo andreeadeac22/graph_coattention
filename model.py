@@ -49,7 +49,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		self.lbl_predict = nn.Linear(d_readout, n_lbls)
 
 		self.__score_fn = score_fn
-		self.pair_model = GraphPairNN(batch_size, batch_size, batch_size)
+		self.pair_model = GraphPairNN(batch_size, batch_size, batch_size).cuda()
 
 	@property
 	def score_fn(self):
@@ -64,10 +64,11 @@ class DrugDrugInteractionNetwork(nn.Module):
 			se_idx=None, drug_se_seg=None):
 
 		# generate input indices + padding
-		ind_in = np.arange(0, -(-len(seg_m1) // self.pair_model.out_features) * self.pair_model.out_features)
-		ind_in = np.reshape(shape=(ind_in.shape[0] // self.pair_model.out_features, self.pair_model.out_features))
-		ind_in = torch.from_numpy(ind_in).type(torch.FloatTensor).cuda()
-		ind_out = self.pair_model(ind_in)
+		ind_in =np.arange(0, -(-len(seg_m1) // self.pair_model.out_features) * self.pair_model.out_features)
+		ind_in = torch.from_numpy(ind_in).type(torch.FloatTensor)
+		ind_in = ind_in.reshape(shape=(ind_in.shape[0] // self.pair_model.out_features, self.pair_model.out_features))
+
+		ind_out = self.pair_model(ind_in.cuda())
 		ind_out = ind_out.reshape(shape=(ind_in.shape[0] * ind_in.shape[1], ind_in.shape[1]))
 		preds = torch.max(ind_out, dim=1)[1].type(torch.LongTensor)
 

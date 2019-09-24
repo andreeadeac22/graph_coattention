@@ -80,6 +80,7 @@ def load_trained_model(train_opt, device):
 		d_edge=train_opt.d_hid,
 		d_atom_feat=3,
 		d_hid=train_opt.d_hid,
+		d_readout=train_opt.d_readout,
 		n_head=train_opt.n_attention_head,
 		n_prop_step=train_opt.n_prop_step).to(device)
 	trained_state = torch.load(train_opt.best_model_pkl)

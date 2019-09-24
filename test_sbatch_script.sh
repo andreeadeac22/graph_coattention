@@ -15,9 +15,9 @@ echo Running pwdon deacandr
 # 0. Set script variables
 scratch=/network/tmp1/deacandr/graph_coattention
 project_root=/network/tmp1/deacandr/graph_coattention/
-arch=approx1
+arch=randompair
 exp_id=1
-experiment_name="graph-coattn-$arch-$exp_id"
+experiment_name="test-graph-coattn-$arch-$exp_id"
 
 # 1. Load your environment
 echo $PATH
@@ -29,15 +29,17 @@ nvidia-smi
 
 # 2. Copy your dataset on the compute node
 #mkdir $SLURM_TMPDIR/data
-#cp -r $scratch/data/ $SLURM_TMPDIR/data
-mkdir $SLURM_TMPDIR/$experiment_name
+cp $scratch/graph-coattn-randompair-1/* $SLURM_TMPDIR/
+ls -l $SLURM_TMPDIR
+#mkdir $SLURM_TMPDIR/$experiment_name
 
 # 3. Launch your job, tell it to save the model in $SLURM_TMPDIR
 #    and look for the dataset into $SLURM_TMPDIR
 pwd
 cd graph_coattention/
-python test.py QM9 $scratch/exp_settings/default-cv_1_10.npy
+python test.py QM9 $scratch/graph-coattn-randompair-1/randompair-hid50-readout200-repetitions1-patience8-batch256-cv_1_10.npy
 
 # 4. Copy whatever you want to save on $SCRATCH
 mkdir -p $scratch/$experiment_name
-cp -r $SLURM_TMPDIR/$experiment_name/ $scratch/$experiment_name/
+ls -l $SLURM_TMPDIR
+cp $SLURM_TMPDIR/* $scratch/$experiment_name/

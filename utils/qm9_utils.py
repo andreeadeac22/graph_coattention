@@ -144,7 +144,6 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 		avg_training_loss.update(loss.detach(), 128)
 		opt.global_step += 1
 		batch_no += 1
-		break
 
 	used_time = (time.time() - start) / 60
 	return avg_training_loss.get_avg(), used_time, averaged_model

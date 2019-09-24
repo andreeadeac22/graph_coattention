@@ -345,11 +345,11 @@ def main():
 
 	model = DrugDrugInteractionNetwork(
 		n_side_effect=opt.n_side_effect,
-		n_atom_type=opt.n_atom_type,
-		n_bond_type=opt.n_bond_type,
+		n_atom_type=100,
+		n_bond_type=20,
 		d_node=opt.d_hid,
 		d_edge=opt.d_hid,
-		d_atom_feat=opt.d_atom_feat,
+		d_atom_feat=3,
 		d_hid=opt.d_hid,
 		d_readout=opt.d_readout,
 		n_head=opt.n_attention_head,

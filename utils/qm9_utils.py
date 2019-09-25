@@ -62,11 +62,44 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 	return dataset
 
 
-def build_knn_qm9_dataset(graph_dict, labels_dict1,labels_dict2,labels_dict3, repetitions):
-	#tree = BallTree(X)
-	#_, ind = tree.query(X, k=repetitions)
+def build_knn_qm9_dataset(z_dict,
+                          graph_dict,
+                          train_dict,
+                          graph_labels, train_labels, repetitions):
+	train_representations = []
+	train_key_at_rep_pos = {}
+	
+	for i, key in enumerate(train_dict):
+		train_representations.append(z_dict[key])
+		train_key_at_rep_pos[key] = i
+
+	train_representations = np.stack(train_representations)
+	tree = BallTree(train_representations)
+
+
+	query_representations = []
+	query_key_at_rep_pos = {}
+	for i, key in enumerate(graph_dict):
+		query_representations.append(z_dict[key])
+		query_key_at_rep_pos[key] = i
+
+	_, ind = tree.query(query_representations, k=repetitions)
 	# ind[i][j] will give the index of j-th closest neighbour of i
-	return
+
+	dataset = []
+
+	for key1 in graph_dict:
+		label1 = graph_labels[key1]
+
+		# key1 is on row p in query_representations
+		p = query_key_at_rep_pos[key1]
+		for j in range(repetitions):
+			# ball_tree_pos is the row in train_representations
+			ball_tree_pos = ind[p][j]
+			key2 = train_key_at_rep_pos[ball_tree_pos]
+			label2 = train_labels[key2]
+			dataset.append((key1, key2, label1, label2))
+	return dataset
 
 
 def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):

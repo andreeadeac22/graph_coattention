@@ -233,7 +233,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	print_step = 100 * opt.qm9_pairing_repetitions
 
-	all_ents = []
+	#all_ents = []
 
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
@@ -288,27 +288,27 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			batch_no += 1
 
 			# Entropy postprocessing
-			for lyr, ent in enumerate(ents):
-				if lyr >= len(all_ents):
-					all_ents.append(torch.cat(ent, 0))
-				else:
-					all_ents[lyr] = torch.cat([all_ents[lyr], torch.cat(ent, 0)], 0)
+			#for lyr, ent in enumerate(ents):
+			#	if lyr >= len(all_ents):
+			#		all_ents.append(torch.cat(ent, 0))
+			#	else:
+			#		all_ents[lyr] = torch.cat([all_ents[lyr], torch.cat(ent, 0)], 0)
 
 	overall_losses = torch.mean(all_debug_losses, 0)
 	print()
 	print("Validation (/test) result ", overall_losses)
 
-	perf_all_ents = {}
+	#perf_all_ents = {}
 
-	for lyr in range(len(all_ents)):
-		perf_all_ents[lyr] = all_ents[lyr].cpu().detach().numpy()
+	#for lyr in range(len(all_ents)):
+	#	perf_all_ents[lyr] = all_ents[lyr].cpu().detach().numpy()
 
 
 	# calculate the performance
 	performance = {
 		'individual_maes': overall_losses,
 		'auroc': torch.mean(overall_losses),
-		'entropy': perf_all_ents,
+		#'entropy': perf_all_ents,
 		'threshold': threshold
 	}
 

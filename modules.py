@@ -126,11 +126,11 @@ class CoAttention(nn.Module):
 		msg1 = node1.new_zeros((n_seg1, d_h)).index_add(0, seg_i1, node1_edge * node1_nbr)
 		msg2 = node2.new_zeros((n_seg2, d_h)).index_add(0, seg_i2, node2_edge * node2_nbr)
 
-                # Entropy computation
-                ent1 = node1.new_zeros((n_seg1, 1)).index_add(0, seg_i1, torch.sum(node1_edge * torch.log(node1_edge + 1e-7), -1))
-                ent2 = node2.new_zeros((n_seg2, 1)).index_add(0, seg_i2, torch.sum(node2_edge * torch.log(node2_edge + 1e-7), -1))
-                entropy.append(ent1)
-                entropy.append(ent2)
+		# Entropy computation
+		ent1 = node1.new_zeros((n_seg1, 1)).index_add(0, seg_i1, torch.sum(node1_edge * torch.log(node1_edge + 1e-7), -1))
+		ent2 = node2.new_zeros((n_seg2, 1)).index_add(0, seg_i2, torch.sum(node2_edge * torch.log(node2_edge + 1e-7), -1))
+		entropy.append(ent1)
+		entropy.append(ent2)
 
 		if self.multi_head:
 			msg1 = msg1[arg_i1].view(-1, d_h * self.n_head)
@@ -216,7 +216,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			self,
 			seg_g1, node1, edge1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_g2, node2, edge2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
-                        entropies=[]):
+						entropies=[]):
 
 		for step_i in range(self.n_prop_step):
 			if step_i >= len(entropies):

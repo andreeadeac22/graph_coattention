@@ -125,10 +125,10 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 
 			if all_debug_losses is None:
 				all_debug_losses = torch.cat((
-				        debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
+						debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
 			else:
 				all_debug_losses = torch.cat((all_debug_losses,
-				            debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
+							debug_loss1.cpu().detach(), debug_loss2.cpu().detach()), 0)
 
 			print_debug_losses = torch.mean(all_debug_losses, 0)
 
@@ -166,7 +166,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	print_step = 100 * opt.qm9_pairing_repetitions
 
-        all_ents = []
+	all_ents = []
 
 	with torch.no_grad():
 		for batch in tqdm(data_valid, mininterval=3, leave=False, desc='  - (Validation)  '):
@@ -184,15 +184,15 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 				labels1 = std_labels(std, mean, labels1)
 				labels2 = std_labels(std, mean, labels2)
 
-                        ents = []
+			ents = []
 
 			# forward
 			pred1, pred2 = model(*batch, entropies=ents)
 
 			pred1 = torch.reshape(pred1,
-			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
+						(-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			labels1 = torch.reshape(labels1,
-			            (-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
+						(-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			assert labels1.shape[2] == opt.qm9_output_feat
 
 			pred1 = torch.mean(pred1, 1)
@@ -207,7 +207,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 				all_debug_losses = debug_loss1.cpu().detach()
 			else:
 				all_debug_losses = torch.cat((all_debug_losses,
-				                debug_loss1.cpu().detach()), 0)
+								debug_loss1.cpu().detach()), 0)
 
 			if batch_no % print_step == 0:
 				print_debug_losses = torch.mean(all_debug_losses, 0)
@@ -220,8 +220,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			overall_loss += loss.detach()
 			batch_no += 1
 
-                        # Entropy postprocessing
-                        for lyr, ent in enumerate(ents):
+			# Entropy postprocessing
+			for lyr, ent in enumerate(ents):
 				if lyr >= len(all_ents):
 					all_ents.append(torch.cat(ent, 0))
 				else:
@@ -231,19 +231,27 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	print()
 	print("Validation (/test) result ", overall_losses)
 
+	perf_all_ents = {}
+
+	for lyr in range(len(all_ents)):
+		perf_all_ents[lyr] = all_ents[lyr].cpu().detach().numpy()
+
 
 	# calculate the performance
 	performance = {
 		'individual_maes': overall_losses,
 		'auroc': torch.mean(overall_losses),
+		'entropy': perf_all_ents,
 		'threshold': threshold
 	}
-        
-        # Can do stuff (e.g. plot histograms) of all_ents
-        # import matplotlib.pyplot as plt
-        # import seaborn as sns
-        # sns.set()
-        # plt.hist(all_ents.cpu().detach().numpy(), n_bins=20)
+
+	# Can do stuff (e.g. plot histograms) of all_ents
+	# import matplotlib.pyplot as plt
+	# import seaborn as sns
+	# sns.set()
+	# plt.hist(all_ents.cpu().detach().numpy(), n_bins=20)
+
+
 
 	used_time = (time.time() - start) / 60
 	return performance, used_time

@@ -99,6 +99,7 @@ def main():
 	                    help='Name of dataset to used for training [QM9,DECAGON]')
 	parser.add_argument('--settings', help='Setting, ends in .npy', default=None)
 	parser.add_argument('-mm', '--memo', help='Trained model, ends in .pth', default='default')
+	parser.add_argument('--entropy', help='Where to save entropy, ends in .pickle', default=None)
 	parser.add_argument('--model_dir', default='./exp_trained')
 
 	parser.add_argument('-t', '--test_dataset_pkl', default=None)
@@ -136,6 +137,11 @@ def main():
 		for k,v in test_perf.items():
 			if k!= 'threshold':
 				print(k, v)
+
+		if 'entropy' in test_perf:
+			entropy_file_name = os.path.join(eval_opt.model_dir, eval_opt.entropy)
+			with open(entropy_file_name, "wb") as ent_file:
+				pickle.dump(test_perf['entropy'], ent_file)
 	else:
 		if eval_opt.test_dataset_pkl:
 			test_dataset = pickle.load(open(eval_opt.test_dataset_pkl, 'rb'))

@@ -14,7 +14,7 @@ from ddi_dataset import PolypharmacyDataset, ddi_collate_batch
 #from drug_data_util import copy_dataset_from_pkl
 from model import DrugDrugInteractionNetwork
 from train import valid_epoch as run_evaluation
-from utils.qm9_utils import build_qm9_dataset
+from utils.qm9_utils import build_qm9_dataset, build_knn_qm9_dataset
 
 logging.basicConfig(
 	level=logging.INFO,
@@ -122,7 +122,23 @@ def main():
 		if not hasattr(test_opt, 'mpnn'):
 			test_opt.mpnn = False
 
-		test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
+		if not hasattr(test_opt, 'qm9_knn'):
+			test_opt.qm9_knn = False
+
+		if test_opt.qm9_knn:
+			test_opt.z_dict = pickle.load(open(test_opt.input_data_path + "drug.z1.pickle", "rb"))
+			# test molecule is first in the pair
+			test_opt.test_dataset = build_knn_qm9_dataset(
+				z_dict=test_opt.z_dict,
+				graph_dict=test_opt.test_graph_dict,
+				train_dict=test_opt.train_graph_dict,
+				graph_labels=test_opt.test_labels_dict,
+				train_labels=test_opt.train_labels_dict,
+				repetitions=test_opt.qm9_pairing_repetitions,
+				self_pair=test_opt.mpnn,
+				is_train=False)
+		else:
+			test_opt.test_dataset = build_qm9_dataset(graph_dict1=test_opt.test_graph_dict,
 		                                          graph_dict2=test_opt.train_graph_dict,
 		                                          labels_dict1=test_opt.test_labels_dict,
 		                                          labels_dict2=test_opt.train_labels_dict,

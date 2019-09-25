@@ -76,7 +76,7 @@ def build_knn_qm9_dataset(z_dict,
 		train_representations.append(z_dict[key])
 		rep_pos_to_train_key[i] = key
 
-	train_representations = np.stack(train_representations)
+	train_representations = np.squeeze(np.stack(train_representations))
 	tree = BallTree(train_representations)
 
 	query_representations = []
@@ -85,6 +85,7 @@ def build_knn_qm9_dataset(z_dict,
 		query_representations.append(z_dict[key])
 		query_key_at_rep_pos[key] = i
 
+	query_representations = np.squeeze(np.stack(query_representations))
 	_, ind = tree.query(query_representations, k=repetitions+1)
 	# ind[i][j] will give the index of j-th closest neighbour of i
 

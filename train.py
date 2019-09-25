@@ -23,7 +23,7 @@ from utils.file_utils import setup_running_directories, \
 				save_experiment_settings
 from utils.functional_utils import combine
 
-from utils.qm9_utils import build_qm9_dataset, \
+from utils.qm9_utils import build_qm9_dataset, build_knn_qm9_dataset, \
 				qm9_train_epoch, qm9_valid_epoch
 from utils.ddi_utils import ddi_train_epoch, ddi_valid_epoch
 
@@ -247,6 +247,9 @@ def main():
 	parser.add_argument('--qm9_normalise', default="scaled",
 	                    help="How to normalise qm9 data e.g. scaled or standardised")
 
+	parser.add_argument('--qm9_knn', action='store_true',
+	                    help="Whether to use k-NN for pairing, by default it's random")
+
 	# If mpnn is true, then first pairing happens with itself
 	# for repetitions=1, this is mpnn-like.
 	parser.add_argument('--mpnn', action='store_true')
@@ -291,20 +294,46 @@ def main():
 		if not hasattr(opt, 'mpnn'):
 			opt.mpnn = False
 
-		opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
-		                                      graph_dict2=opt.train_graph_dict,
-		                                      labels_dict1=opt.train_labels_dict,
-		                                      labels_dict2=opt.train_labels_dict,
-		                                      repetitions=opt.qm9_pairing_repetitions,
-		                                      self_pair = opt.mpnn)
+		if not hasattr(opt, 'qm9_knn'):
+			opt.qm9_knn = False
 
-		# valid molecule is first in the pair
-		opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
-		                                      graph_dict2=opt.train_graph_dict,
-		                                      labels_dict1=opt.valid_labels_dict,
-		                                      labels_dict2=opt.train_labels_dict,
-		                                      repetitions=opt.qm9_pairing_repetitions,
-		                                      self_pair = opt.mpnn)
+		if opt.qm9_knn:
+			opt.z_dict = pickle.load(open(opt.input_data_path + "drug.z1.pickle", "rb"))
+			opt.train_dataset = build_knn_qm9_dataset(
+								    z_dict = opt.z_dict,
+								    graph_dict=opt.train_graph_dict,
+                                    train_dict=opt.train_graph_dict,
+									graph_labels=opt.train_labels_dict,
+									train_labels=opt.train_labels_dict,
+                                    repetitions=opt.qm9_pairing_repetitions,
+                                    self_pair=opt.mpnn,
+									is_train=True)
+
+			# valid molecule is first in the pair
+			opt.valid_dataset = build_knn_qm9_dataset(
+				z_dict= opt.z_dict,
+				graph_dict=opt.valid_graph_dict,
+				train_dict=opt.train_graph_dict,
+				graph_labels=opt.valid_labels_dict,
+				train_labels=opt.train_labels_dict,
+				repetitions=opt.qm9_pairing_repetitions,
+				self_pair=opt.mpnn,
+				is_train=False)
+		else:
+			opt.train_dataset = build_qm9_dataset(graph_dict1=opt.train_graph_dict,
+			                                      graph_dict2=opt.train_graph_dict,
+			                                      labels_dict1=opt.train_labels_dict,
+			                                      labels_dict2=opt.train_labels_dict,
+			                                      repetitions=opt.qm9_pairing_repetitions,
+			                                      self_pair = opt.mpnn)
+
+			# valid molecule is first in the pair
+			opt.valid_dataset = build_qm9_dataset(graph_dict1=opt.valid_graph_dict,
+			                                      graph_dict2=opt.train_graph_dict,
+			                                      labels_dict1=opt.valid_labels_dict,
+			                                      labels_dict2=opt.train_labels_dict,
+			                                      repetitions=opt.qm9_pairing_repetitions,
+			                                      self_pair = opt.mpnn)
 		dataloaders = prepare_qm9_dataloaders(opt)
 
 

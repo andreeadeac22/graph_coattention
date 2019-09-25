@@ -65,7 +65,10 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 def build_knn_qm9_dataset(z_dict,
                           graph_dict,
                           train_dict,
-                          graph_labels, train_labels, repetitions):
+                          graph_labels, train_labels,
+                          repetitions,
+                          self_pair=False,
+                          is_train=False):
 	train_representations = []
 	train_key_at_rep_pos = {}
 	
@@ -75,7 +78,6 @@ def build_knn_qm9_dataset(z_dict,
 
 	train_representations = np.stack(train_representations)
 	tree = BallTree(train_representations)
-
 
 	query_representations = []
 	query_key_at_rep_pos = {}
@@ -90,15 +92,38 @@ def build_knn_qm9_dataset(z_dict,
 
 	for key1 in graph_dict:
 		label1 = graph_labels[key1]
-
 		# key1 is on row p in query_representations
 		p = query_key_at_rep_pos[key1]
-		for j in range(repetitions):
+
+		# if self_pair & train, start from 0
+		# if self_pair & !train, add self separately and add 0-k-1
+
+		# if not self_pair & train, start from 1
+		# if not self_pair & !train, start from 0
+
+		if (self_pair and is_train) or \
+			(not self_pair and not is_train):
+			start_r = 0
+			end_r = repetitions
+
+		if self_pair and not is_train:
+			key2 = key1
+			label2 = label1
+			dataset.append((key1, key2, label1, label2))
+			start_r = 0
+			end_r = repetitions -1
+
+		if not self_pair and is_train:
+			start_r = 1
+			end_r = repetitions + 1
+
+		for j in range(start_r, end_r):
 			# ball_tree_pos is the row in train_representations
 			ball_tree_pos = ind[p][j]
 			key2 = train_key_at_rep_pos[ball_tree_pos]
 			label2 = train_labels[key2]
 			dataset.append((key1, key2, label1, label2))
+			
 	return dataset
 
 

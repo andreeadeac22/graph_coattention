@@ -54,6 +54,19 @@ all_smiles = []
 
 dir_path = "../data/qm9/dsgdb9nsd/"
 
+"""
+# keys are from 1 to 133885
+z1_dict = {}
+with open(dir_path + 'drug.z1.pickle', 'rb') as f:
+	z1 = pickle.load(f)
+
+	for i, k in enumerate(z1):
+		print(i, k)
+	
+	keys = list(z1.keys())
+	keys.sort()
+	print(keys)
+"""
 
 # # Write to pickle file
 files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]

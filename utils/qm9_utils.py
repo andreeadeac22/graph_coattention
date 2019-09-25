@@ -70,11 +70,11 @@ def build_knn_qm9_dataset(z_dict,
                           self_pair=False,
                           is_train=False):
 	train_representations = []
-	train_key_at_rep_pos = {}
+	rep_pos_to_train_key = {}
 	
 	for i, key in enumerate(train_dict):
 		train_representations.append(z_dict[key])
-		train_key_at_rep_pos[key] = i
+		rep_pos_to_train_key[i] = key
 
 	train_representations = np.stack(train_representations)
 	tree = BallTree(train_representations)
@@ -120,10 +120,10 @@ def build_knn_qm9_dataset(z_dict,
 		for j in range(start_r, end_r):
 			# ball_tree_pos is the row in train_representations
 			ball_tree_pos = ind[p][j]
-			key2 = train_key_at_rep_pos[ball_tree_pos]
+			key2 = rep_pos_to_train_key[ball_tree_pos]
 			label2 = train_labels[key2]
 			dataset.append((key1, key2, label1, label2))
-			
+
 	return dataset
 
 

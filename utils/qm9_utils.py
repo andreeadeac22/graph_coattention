@@ -3,6 +3,7 @@ import random
 import numpy as np
 from tqdm import tqdm
 from sklearn import metrics
+from sklearn.neighbors import BallTree
 
 import torch
 import torch.nn as nn
@@ -59,6 +60,13 @@ def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repe
 
 			dataset.append((key1, key2, label1, label2))
 	return dataset
+
+
+def build_knn_qm9_dataset(graph_dict, labels_dict1,labels_dict2,labels_dict3, repetitions):
+	#tree = BallTree(X)
+	#_, ind = tree.query(X, k=repetitions)
+	# ind[i][j] will give the index of j-th closest neighbour of i
+	return
 
 
 def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
@@ -244,14 +252,6 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 		'entropy': perf_all_ents,
 		'threshold': threshold
 	}
-
-	# Can do stuff (e.g. plot histograms) of all_ents
-	# import matplotlib.pyplot as plt
-	# import seaborn as sns
-	# sns.set()
-	# plt.hist(all_ents.cpu().detach().numpy(), n_bins=20)
-
-
 
 	used_time = (time.time() - start) / 60
 	return performance, used_time

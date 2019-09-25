@@ -113,6 +113,9 @@ class CoAttention(nn.Module):
 
 		translation = (node1_ctr * node2_ctr).sum(1)
 
+		# TODO!! Remove this while training, this is just for entropy.
+		#translation = torch.ones_like(translation)
+
 		# Calculate attention weight as edges between two graphs
 		node1_edge = self.attn_drop(segment_softmax(
 			translation, n_seg1, seg_i1, idx_j1, self.temperature))

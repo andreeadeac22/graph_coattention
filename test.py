@@ -140,6 +140,7 @@ def main():
 
 		if 'entropy' in test_perf:
 			entropy_file_name = os.path.join(eval_opt.model_dir, eval_opt.entropy)
+			print("entropy_file_name ", entropy_file_name)
 			with open(entropy_file_name, "wb") as ent_file:
 				pickle.dump(test_perf['entropy'], ent_file)
 	else:

@@ -147,40 +147,37 @@ class CoAttention(nn.Module):
 
 class MessagePassing(nn.Module):
 	def __init__(self,
-				 in_features, # probably d_node
-				 out_features, # probably d_hid
-				 d_edge,
+				 node_in_feat, # probably d_node
+				 node_out_feat, # probably d_hid
 				 dropout = 0.1):
 		super(MessagePassing, self).__init__()
 
 		dropout = nn.Dropout(p=dropout)
-
 		self.node_proj = nn.Sequential(
-			nn.Linear(d_node, d_hid, bias=False), dropout)
+			nn.Linear(node_in_feat, node_out_feat, bias=False))
+			#, dropout)
 
-		self.edge_proj = nn.Sequential(
-			nn.Linear(d_edge, d_hid), nn.LeakyReLU(), dropout,
-			nn.Linear(d_hid, d_hid), nn.LeakyReLU(), dropout)
+	def compute_adj_mat(self, A):
+        batch, N = A.shape[:2]
+        A_hat = A
+        I = torch.eye(N).unsqueeze(0).to(cuda_device)
+        A_hat = A + I
+        return A_hat
 
-		self.msg_proj = nn.Sequential(
-			nn.Linear(d_hid, d_hid), nn.LeakyReLU(), dropout,
-			nn.Linear(d_hid, d_hid), dropout)
+	def forward(self, data):
+        x, A, mask = data[:3]
+        # print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
+        if len(A.shape) == 3:
+            A = A.unsqueeze(3)
+        x_hat = []
 
-	def forward(self, node, edge, seg_i, idx_j):
-		edge = self.edge_proj(edge)
-		msg = self.node_proj(node)
-		msg = self.message_composing(msg, edge, idx_j)
-		msg = self.message_aggregation(node, msg, seg_i)
-		return msg
+        new_A = self.compute_adj_mat(A[:, :, :, 0]) #only one relation type
+        x = self.fc(torch.bmm(new_A, X))
 
-	def message_composing(self, msg, edge, idx_j):
-		msg = msg.index_select(0, idx_j)  # neighbors
-		msg = msg * edge  # element-wise multiplication composition
-		return msg
-
-	def message_aggregation(self, node, msg, seg_i):
-		msg = torch.zeros_like(node).index_add(0, seg_i, msg)  # sum over messages
-		return msg
+        if len(mask.shape) == 2:
+            mask = mask.unsqueeze(2)
+        x = x * mask  # to make values of dummy nodes zeros again, otherwise the bias is added after applying self.fc which affects node embeddings in the following layers
+        return (x, A, mask)
 
 
 class CoAttentionMessagePassingNetwork(nn.Module):

@@ -172,7 +172,8 @@ class MessagePassing(nn.Module):
         x_hat = []
 
         new_A = self.compute_adj_mat(A[:, :, :, 0]) #only one relation type
-        x = self.fc(torch.bmm(new_A, X))
+        x = self.fc(x)
+		x = torch.bmm(new_A, x)
 
         if len(mask.shape) == 2:
             mask = mask.unsqueeze(2)

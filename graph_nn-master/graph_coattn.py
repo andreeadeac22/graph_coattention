@@ -169,7 +169,6 @@ class MessagePassing(nn.Module):
         # print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
         if len(A.shape) == 3:
             A = A.unsqueeze(3)
-        x_hat = []
 
         new_A = self.compute_adj_mat(A[:, :, :, 0]) #only one relation type
         x = self.fc(x)

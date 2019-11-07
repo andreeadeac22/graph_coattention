@@ -107,25 +107,25 @@ class MessagePassing(nn.Module):
 			#, dropout)
 
 	def compute_adj_mat(self, A):
-        batch, N = A.shape[:2]
-        A_hat = A
-        I = torch.eye(N).unsqueeze(0).to(cuda_device)
-        A_hat = A + I
-        return A_hat
+		batch, N = A.shape[:2]
+		A_hat = A
+		I = torch.eye(N).unsqueeze(0).to(cuda_device)
+		A_hat = A + I
+		return A_hat
 
 	def forward(self, x, A, mask):
-        # print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
-        if len(A.shape) == 3:
-            A = A.unsqueeze(3)
+		# print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
+		if len(A.shape) == 3:
+			A = A.unsqueeze(3)
 
-        new_A = self.compute_adj_mat(A[:, :, :, 0]) #only one relation type
-        x = self.fc(x)
+		new_A = self.compute_adj_mat(A[:, :, :, 0]) #only one relation type
+		x = self.fc(x)
 		x = torch.bmm(new_A, x)
 
-        if len(mask.shape) == 2:
-            mask = mask.unsqueeze(2)
-        x = x * mask  # to make values of dummy nodes zeros again, otherwise the bias is added after applying self.fc which affects node embeddings in the following layers
-        return (x, A, mask)
+		if len(mask.shape) == 2:
+			mask = mask.unsqueeze(2)
+		x = x * mask  # to make values of dummy nodes zeros again, otherwise the bias is added after applying self.fc which affects node embeddings in the following layers
+		return (x, A, mask)
 
 
 class CoAttentionMessagePassingNetwork(nn.Module):

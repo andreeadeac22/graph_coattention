@@ -17,13 +17,14 @@ from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader
 
 from utils import split_ids
+from graph_coattn import CoAttentionMessagePassingNetwork
 
 print('using torch', torch.__version__)
 
 # Experiment parameters
 parser = argparse.ArgumentParser(description='Graph Convolutional Networks')
 parser.add_argument('-D', '--dataset', type=str, default='PROTEINS')
-parser.add_argument('-M', '--model', type=str, default='gcn', choices=['gcn', 'unet', 'mgcn'])
+parser.add_argument('-M', '--model', type=str, default='gcn', choices=['gcn', 'unet', 'mgcn', 'coattn'])
 parser.add_argument('--lr', type=float, default=0.005, help='learning rate')
 parser.add_argument('--lr_decay_steps', type=str, default='25,35', help='learning rate')
 parser.add_argument('--wd', type=float, default=1e-4, help='weight decay')
@@ -229,7 +230,12 @@ for fold_id in range(n_folds):
                      dropout=args.dropout,
                      adj_sq=args.adj_sq,
                      scale_identity=args.scale_identity).to(args.device)
-
+    elif args.model == 'coattn':
+        model = CoAttentionMessagePassingNetwork(
+            in_features=loaders[0].dataset.num_features,
+            out_features=1 if is_regression else loaders[0].dataset.num_classes,
+            shuffle_nodes=args.shuffle_nodes,
+            visualize=args.visualize).to(args.device)
     else:
         raise NotImplementedError(args.model)
 

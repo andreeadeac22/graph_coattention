@@ -31,8 +31,8 @@ def segment_multihead_expand(seg_i, n_seg, n_head):
 
 class CoAttention(nn.Module):
 	def __init__(self,
-			d_in,
-			d_out,
+			node_in_feat,
+			node_out_feat,
 			n_head=1,
 			dropout=0.1):
 		super().__init__()
@@ -129,7 +129,12 @@ class MessagePassing(nn.Module):
 
 
 class CoAttentionMessagePassingNetwork(nn.Module):
-	def __init__(self, d_hid, d_readout, n_prop_step, n_head=1, dropout=0.1, update_method='res'):
+	def __init__(self,
+		hidden_dim, #d_node, # filters
+		n_prop_step, #n_hidden
+		n_head=1,
+		dropout=0.1,
+		update_method='res'):
 
 		super().__init__()
 
@@ -146,42 +151,25 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 
 		self.mps = nn.ModuleList([
 			MessagePassing(
-				d_node=d_hid * x_d_node(step_i),
-				d_edge=d_hid, d_hid=d_hid, dropout=dropout)
+				node_in_feat=hidden_dim * x_d_node(step_i),
+				node_out_feat=hidden_dim, dropout=dropout)
 			for step_i in range(n_prop_step)])
 
 		self.coats = nn.ModuleList([
 			CoAttention(
-				d_in=d_hid * x_d_node(step_i),
-				d_out=d_hid, n_head=n_head, dropout=dropout)
-			for step_i in range(n_prop_step)])
-
-		self.lns = nn.ModuleList([
-			nn.LayerNorm(d_hid * x_d_node(step_i))
+				node_in_feat=hidden_dim * x_d_node(step_i),
+				node_out_feat=hidden_dim, n_head=n_head, dropout=dropout)
 			for step_i in range(n_prop_step)])
 
 		self.pre_readout_proj = nn.Sequential(
-			nn.Linear(d_hid * x_d_node(n_prop_step), d_readout),
+			nn.Linear(hidden_dim * x_d_node(n_prop_step), hidden_dim),
 			nn.LeakyReLU())
 
 	def forward(
 			self,
-			data,
+			x1, A1, masks1,
+			x2, A2, masks2,
 			entropies=[]):
-
-		x, A, masks = data[:3]
-
-		evens = torch.tensor([i for i in range(0,x.shape[0],2)])
-		odds = torch.tensor([i for i in range(1,x.shape[0],2)])
-
-		x1 = torch.index_select(x, 0, evens)
-		A1 = torch.index_select(A, 0, evens)
-		masks1 = torch.index_select(masks, 0, evens)
-
-		x2 = torch.index_select(x, 0, odds)
-		A2 = torch.index_select(A, 0, odds)
-		masks2 = torch.index_select(masks, 0, odds)
-
 		for step_i in range(self.n_prop_step):
 			#if step_i >= len(entropies):
 			#	entropies.append([])
@@ -192,19 +180,55 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 				x2, [])
 				# node2, out_seg_i2, out_idx_j2, entropies[step_i])
 
-			node1 = self.lns[step_i](self.update_fn(x1, inner_msg1, outer_msg1))
-			node2 = self.lns[step_i](self.update_fn(x2, inner_msg2, outer_msg2))
+			x1 = x1 + inner_msg1 + outer_msg1
+			x2 = x2 + inner_msg2 + outer_msg2
 
-		g1_vec = self.readout(node1, seg_g1)
-		g2_vec = self.readout(node2, seg_g2)
+		g1_vec = self.readout(x1)
+		g2_vec = self.readout(x2)
 
 		return g1_vec, g2_vec
 
-	def readout(self, node, seg_g):
-		sz_b = seg_g.max() + 1
-
+	def readout(self, node):
+		print(node.shape)
 		node = self.pre_readout_proj(node)
-		d_h = node.size(1)
+		readout = torch.mean(node, 1)
+		return readout
 
-		encv = node.new_zeros((sz_b, d_h)).index_add(0, seg_g, node)
-		return encv
+
+class GraphGraphInteractionNetwork(nn.Module):
+	def __init__(
+			self,
+			in_features, #d_atom_feat,
+			out_features,
+			hidden_dim, #d_node, # filters
+			n_prop_step, #n_hidden
+			n_head=1,
+			dropout=0.1,
+			update_method='res'):
+
+		super().__init__()
+
+		self.dropout = nn.Dropout(p=dropout)
+		self.atom_proj = nn.Linear(in_features, hidden_dim)
+
+		self.encoder = CoAttentionMessagePassingNetwork(
+			hidden_dim=hidden_dim,
+			n_prop_step=n_prop_step, n_head=n_head,
+			update_method=update_method, dropout=dropout)
+		self.lbl_predict = nn.Linear(hidden_dim, out_features)
+
+
+	def forward(self, data1, data2, entropies=[]):
+		x1, A1, masks1 = data1[:3]
+		x2, A2, masks2 = data2[:3]
+		print(x1.shape)
+
+		x1 = self.dropout(self.atom_proj(x1))
+		x2 = self.dropout(self.atom_proj(x2))
+
+		d1_vec, d2_vec = self.encoder(x1, A1, masks1,
+		 	x2, A2, masks2, entropies)
+
+		pred1 = self.lbl_predict(d1_vec)
+		pred2 = self.lbl_predict(d2_vec)
+		return pred1, pred2

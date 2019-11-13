@@ -17,7 +17,7 @@ from torch.nn.parameter import Parameter
 from torch.utils.data import DataLoader
 
 from utils import split_ids
-from graph_coattn import CoAttentionMessagePassingNetwork
+from graph_coattn import GraphGraphInteractionNetwork
 
 print('using torch', torch.__version__)
 
@@ -231,11 +231,12 @@ for fold_id in range(n_folds):
                      adj_sq=args.adj_sq,
                      scale_identity=args.scale_identity).to(args.device)
     elif args.model == 'coattn':
-        model = CoAttentionMessagePassingNetwork(
+        model = GraphGraphInteractionNetwork(
             in_features=loaders[0].dataset.num_features,
             out_features=1 if is_regression else loaders[0].dataset.num_classes,
-            shuffle_nodes=args.shuffle_nodes,
-            visualize=args.visualize).to(args.device)
+            hidden_dim=args.filters[0],
+            n_prop_step=args.n_hidden,
+            ).to(args.device)
     else:
         raise NotImplementedError(args.model)
 
@@ -274,8 +275,8 @@ for fold_id in range(n_folds):
             # if args.use_cont_node_attr:
             #     data[0] = norm_features(data[0])
             optimizer.zero_grad()
-            output = model(data)
-            loss = loss_fn(output, data[4])
+            output = model(data, data)
+            loss = loss_fn(output[0], data[4])
             loss.backward()
             optimizer.step()
             time_iter = time.time() - start
@@ -297,7 +298,7 @@ for fold_id in range(n_folds):
                 data[i] = data[i].to(args.device)
             # if args.use_cont_node_attr:
             #     data[0] = norm_features(data[0])
-            output = model(data)
+            output = model(data, data)
             loss = loss_fn(output, data[4], reduction='sum')
             test_loss += loss.item()
             n_samples += len(output)

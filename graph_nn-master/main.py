@@ -33,6 +33,8 @@ parser.add_argument('-f', '--filters', type=str, default='64,64,64', help='numbe
 parser.add_argument('-K', '--filter_scale', type=int, default=1, help='filter scale (receptive field size), must be > 0; 1 for GCN, >1 for ChebNet')
 parser.add_argument('--n_hidden', type=int, default=0,
                     help='number of hidden units in a fully connected layer after the last conv layer')
+parser.add_argument('--n_prop_step', type=int, default=3,
+                    help='number of propagation steps in graph co-attention')
 parser.add_argument('--n_hidden_edge', type=int, default=32,
                     help='number of hidden units in a fully connected layer of the edge prediction network')
 parser.add_argument('--degree', action='store_true', default=False, help='use one-hot node degree features')
@@ -235,7 +237,7 @@ for fold_id in range(n_folds):
             in_features=loaders[0].dataset.num_features,
             out_features=1 if is_regression else loaders[0].dataset.num_classes,
             hidden_dim=args.filters[0],
-            n_prop_step=args.n_hidden,
+            n_prop_step=args.n_prop_step,
             ).to(args.device)
     else:
         raise NotImplementedError(args.model)
@@ -275,14 +277,43 @@ for fold_id in range(n_folds):
             # if args.use_cont_node_attr:
             #     data[0] = norm_features(data[0])
             optimizer.zero_grad()
-            output = model(data, data)
-            loss = loss_fn(output[0], data[4])
+            output = model(data)
+            loss = loss_fn(output, data[4])
             loss.backward()
             optimizer.step()
             time_iter = time.time() - start
             train_loss += loss.item() * len(output)
             n_samples += len(output)
             if batch_idx % args.log_interval == 0 or batch_idx == len(train_loader) - 1:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f} (avg: {:.6f}) \tsec/iter: {:.4f}'.format(
+                    epoch + 1, n_samples, len(train_loader.dataset),
+                    100. * (batch_idx + 1) / len(train_loader), loss.item(), train_loss / n_samples,
+                    time_iter / (batch_idx + 1)))
+
+    def paired_train(train_loader):
+        scheduler.step()
+        model.train()
+        start = time.time()
+        train_loss, n_samples = 0, 0
+        for batch_idx, data in enumerate(train_loader):
+            for i in range(len(data)):
+                data[i] = data[i].to(args.device)
+            if batch_idx % 2 == 0:
+                prev_data = data
+                continue #TODO: check that this continues to the next for iter
+            # if args.use_cont_node_attr:
+            #     data[0] = norm_features(data[0])
+            optimizer.zero_grad()
+            output1, output2 = model(prev_data, data)
+            prev_loss = loss_fn(output1, prev_data[4])
+            curr_loss = loss_fn(output2, data[4])
+            loss = prev_loss + curr_loss
+            loss.backward()
+            optimizer.step()
+            time_iter = time.time() - start
+            train_loss += loss.item() * len(output1) * 2
+            n_samples += len(output1) * 2
+            if batch_idx % args.log_interval == 1 or batch_idx == len(train_loader) - 1:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f} (avg: {:.6f}) \tsec/iter: {:.4f}'.format(
                     epoch + 1, n_samples, len(train_loader.dataset),
                     100. * (batch_idx + 1) / len(train_loader), loss.item(), train_loss / n_samples,
@@ -298,7 +329,7 @@ for fold_id in range(n_folds):
                 data[i] = data[i].to(args.device)
             # if args.use_cont_node_attr:
             #     data[0] = norm_features(data[0])
-            output = model(data, data)
+            output = model(data)
             loss = loss_fn(output, data[4], reduction='sum')
             test_loss += loss.item()
             n_samples += len(output)
@@ -315,9 +346,48 @@ for fold_id in range(n_folds):
             acc, (time.time() - start) / len(test_loader)))
         return acc
 
+    def paired_test(train_loader, test_loader):
+        model.eval()
+        start = time.time()
+        test_loss, correct, n_samples = 0, 0, 0
+        iter_train = iter(train_loader)
+        for batch_idx, data in enumerate(test_loader):
+            train_data = next(iter_train)
+            for i in range(len(data)):
+                data[i] = data[i].to(args.device)
+                itd = train_data[i]
+                train_data[i] = itd[:data[i].shape[0]]
+
+            # if args.use_cont_node_attr:
+            #     data[0] = norm_features(data[0])
+            output_test, output_train = model(data, train_data)
+            loss = loss_fn(output_test, data[4], reduction='sum')
+            test_loss += loss.item()
+            n_samples += len(output_test)
+            pred = predict_fn(output_test)
+
+            correct += pred.eq(data[4].detach().cpu().view_as(pred)).sum().item()
+
+        acc = 100. * correct / n_samples
+        print('Test set (epoch {}): Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%) \tsec/iter: {:.4f}\n'.format(
+            epoch + 1,
+            test_loss / n_samples,
+            correct,
+            n_samples,
+            acc, (time.time() - start) / len(test_loader)))
+        return acc
+
     for epoch in range(args.epochs):
-        train(loaders[0])  # no need to evaluate after each epoch
-    acc = test(loaders[1])
+        if args.model == "coattn":
+            paired_train(loaders[0])
+        else:
+            train(loaders[0])  # no need to evaluate after each epoch
+
+    if args.model == "coattn":
+        acc = paired_test(loaders[0], loaders[1])
+    else:
+        acc = test(loaders[1])
+
     acc_folds.append(acc)
 
 print(acc_folds)

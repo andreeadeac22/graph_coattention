@@ -1,7 +1,3 @@
-import matplotlib
-
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 import os
@@ -237,6 +233,7 @@ for fold_id in range(n_folds):
             in_features=loaders[0].dataset.num_features,
             out_features=1 if is_regression else loaders[0].dataset.num_classes,
             hidden_dim=args.filters[0],
+
             n_prop_step=args.n_prop_step,
             ).to(args.device)
     else:
@@ -355,7 +352,7 @@ for fold_id in range(n_folds):
             train_data = next(iter_train)
             for i in range(len(data)):
                 data[i] = data[i].to(args.device)
-                itd = train_data[i]
+                itd = train_data[i].to(args.device)
                 train_data[i] = itd[:data[i].shape[0]]
 
             # if args.use_cont_node_attr:

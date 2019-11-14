@@ -20,6 +20,13 @@ def std_labels(std, mean, label):
 	standardised_label = (label - mean)/std
 	return standardised_label
 
+def scale_back_prediction(prediction, train_data_min, train_data_max, scale, pref_min=0, pref_max=1):
+	scaled_back_prediction = (prediction - pref_min + train_data_min * scale) / scale
+	return scaled_back_prediction
+
+def std_back_prediction(std, mean, prediction):
+	unstardadised_prediction = prediction * std + mean
+	return unstardadised_prediction
 
 def build_qm9_dataset(graph_dict1, graph_dict2, labels_dict1, labels_dict2, repetitions, self_pair=False):
 	kv_list1 = [(k, v) for k, v in graph_dict1.items()]

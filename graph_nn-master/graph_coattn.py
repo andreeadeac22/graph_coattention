@@ -49,21 +49,12 @@ class CoAttention(nn.Module):
 
 		self.softmax = nn.Softmax(dim=1)
 
-		self.attn_drop = nn.Dropout(p=dropout)
 		self.out_proj = nn.Sequential(
 			nn.Linear(node_in_feat * n_head, node_out_feat),
-			nn.LeakyReLU(), nn.Dropout(p=dropout))
+			nn.LeakyReLU())
 
 
-	def forward(self, x1, x2, entropy=[]):
-
-		# Why is there a key_proj and a val_proj?
-		# Copy center for attention key
-		#node1_ctr = self.key_proj(node1).index_select(0, seg_i1)
-		#node2_ctr = self.key_proj(node2).index_select(0, seg_i2)
-		# Copy neighbor for attention value
-		#node1_nbr = self.val_proj(node2).index_select(0, seg_i2)  # idx_j1 == seg_i2
-		#node2_nbr = self.val_proj(node1).index_select(0, seg_i1)  # idx_j2 == seg_i1
+	def forward(self, x1, masks1, x2, masks2, entropy=[]):
 
 		h1 = self.key_proj(x1)
 		h2 = self.key_proj(x2)
@@ -71,10 +62,11 @@ class CoAttention(nn.Module):
 		e12 = torch.bmm(h1, torch.transpose(h2, -1, -2))
 		e21 = torch.bmm(h2, torch.transpose(h1, -1, -2))
 
-		# what is segment_softmax
-		# dropout?
-		a12 = self.softmax(e12)
-		a21 = self.softmax(e21)
+		#a12 = self.softmax(e12 + (masks2.unsqueeze(1) - 1.0) * 1e9)
+		#a21 = self.softmax(e21 + (masks1.unsqueeze(1) - 1.0) * 1e9)
+
+		a12 = torch.ones_like(e12) * masks2.unsqueeze(1)
+		a21 = torch.ones_like(e21) * masks1.unsqueeze(1)
 
 		n12 = torch.bmm(a12, self.val_proj(x2))
 		n21 = torch.bmm(a21, self.val_proj(x1))
@@ -102,18 +94,17 @@ class MessagePassing(nn.Module):
 				 dropout = 0.1):
 		super(MessagePassing, self).__init__()
 
-		dropout = nn.Dropout(p=dropout)
-
 		self.node_proj = nn.Sequential(
 			nn.Linear(node_in_feat, node_out_feat, bias=False))
-			#, dropout)
 
 	def compute_adj_mat(self, A):
 		batch, N = A.shape[:2]
 		A_hat = A
 		I = torch.eye(N).unsqueeze(0).to(cuda_device)
 		A_hat = A + I
-		return A_hat
+		D_hat = (torch.sum(A_hat, 1) + 1e-5) ** (-0.5)
+		L = D_hat.view(batch, N, 1) * A_hat * D_hat.view(batch, 1, N)
+		return L
 
 	def forward(self, x, A, mask):
 		# print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
@@ -133,7 +124,7 @@ class MessagePassing(nn.Module):
 class CoAttentionMessagePassingNetwork(nn.Module):
 	def __init__(self,
 		hidden_dim, #d_node, # filters
-		n_prop_step, #n_hidden
+		n_prop_step, #n_prop_step
 		n_head=1,
 		dropout=0.1,
 		update_method='res'):
@@ -177,23 +168,27 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			#	entropies.append([])
 			inner_msg1 = self.mps[step_i](x1, A1, masks1)
 			inner_msg2 = self.mps[step_i](x2, A2, masks2)
-			#outer_msg1, outer_msg2 = self.coats[step_i](
-			#	x1,
-			#	x2, [])
+			outer_msg1, outer_msg2 = self.coats[step_i](
+				x1, masks1,
+				x2, masks2, [])
 				# node2, out_seg_i2, out_idx_j2, entropies[step_i])
 
-			x1 = x1 + inner_msg1 #+ outer_msg1
-			x2 = x2 + inner_msg2 #+ outer_msg2
+			x1 = x1 + inner_msg1 + outer_msg1
+			x2 = x2 + inner_msg2 + outer_msg2
 
-		g1_vec = self.readout(x1)
-		g2_vec = self.readout(x2)
+		g1_vec = self.readout(x1, masks1)
+		g2_vec = self.readout(x2, masks2)
 
 		return g1_vec, g2_vec
 
-	def readout(self, node):
+	def readout(self, node, mask):
 		#print(node.shape)
 		node = self.pre_readout_proj(node)
-		readout = torch.mean(node, 1)
+		if len(mask.shape) == 2:
+			mask = mask.unsqueeze(2)
+		node = node * mask
+		mask = mask.squeeze()
+		readout = torch.mean(node, 1) / torch.mean(mask, 1, keepdim=True)
 		return readout
 
 
@@ -210,7 +205,6 @@ class GraphGraphInteractionNetwork(nn.Module):
 
 		super().__init__()
 
-		self.dropout = nn.Dropout(p=dropout)
 		self.atom_proj = nn.Linear(in_features, hidden_dim)
 
 		self.encoder = CoAttentionMessagePassingNetwork(
@@ -225,8 +219,8 @@ class GraphGraphInteractionNetwork(nn.Module):
 		x2, A2, masks2 = data2[:3]
 		#print(x1.shape)
 
-		x1 = self.dropout(self.atom_proj(x1))
-		x2 = self.dropout(self.atom_proj(x2))
+		x1 = self.atom_proj(x1)
+		x2 = self.atom_proj(x2)
 
 		d1_vec, d2_vec = self.encoder(x1, A1, masks1,
 		 	x2, A2, masks2, entropies)

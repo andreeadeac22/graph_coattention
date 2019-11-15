@@ -251,12 +251,12 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			labels2 = labels2.to(device)
 
 			# TODO: check if correct
-			if opt.qm9_normalise == "scaled":
-				labels1 = scale_labels(labels1, minima, maxima, scale)
-				labels2 = scale_labels(labels2, minima, maxima, scale)
-			else:
-				labels1 = std_labels(std, mean, labels1)
-				labels2 = std_labels(std, mean, labels2)
+			#if opt.qm9_normalise == "scaled":
+			#	labels1 = scale_labels(labels1, minima, maxima, scale)
+			#	labels2 = scale_labels(labels2, minima, maxima, scale)
+			#else:
+			#	labels1 = std_labels(std, mean, labels1)
+			#	labels2 = std_labels(std, mean, labels2)
 
 			ents = []
 
@@ -271,6 +271,11 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 			pred1 = torch.mean(pred1, 1)
 			labels1 = torch.mean(labels1, 1)
+
+			if opt.qm9_normalise == "scaled":
+				pred1 = scale_back_prediction(pred1, minima, maxima, scale)
+			else:
+				pred1 = std_back_prediction(std, mean, pred1)
 
 			loss = loss_fn(pred1, labels1)
 

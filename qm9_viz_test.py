@@ -114,23 +114,29 @@ def main():
 		test1 = {1: test_opt.test_graph_dict[1]}
 		test2 = {2: test_opt.test_graph_dict[2]}
 
-		test_opt.test_dataset = build_qm9_dataset(graph_dict1 = test1,
-			graph_dict2 = test2, labels_dict1=test_opt.test_labels_dict[1],
-	        labels_dict2=test_opt.test_graph_dict[2], repetitions=test_opt.qm9_pairing_repetitions,
-	                 self_pair=False)
+		print("test_opt.test_labels_dict[1]", test_opt.test_labels_dict[1])
+
+		test_opt.test_dataset = [(1,2,test_opt.test_labels_dict[1], test_opt.test_labels_dict[2])]
+
+		
 
 		test_data = prepare_qm9_testset_dataloader(test_opt)
 
 		model, threshold = load_trained_model(test_opt, device)
 
-		test_perf, _, a12, a21 = run_evaluation(model, test_data, device, test_opt)
+		pred1, pred2, a12, a21 = run_evaluation(model, test_data, device, test_opt)
 
-		with open('viz_attn_coef1.jsonl', 'wb') as h:
+		viz1 = os.path.join(eval_opt.model_dir, 'viz_attn_coef1.pkl')
+		viz2 = os.path.join(eval_opt.model_dir, 'viz_attn_coef2.pkl')
+
+
+		with open(viz1, 'wb') as h:
 			pickle.dump(a12, h)
 
-		with open('viz_attn_coef2.jsonl', 'wb') as h:
+		with open(viz2, 'wb') as h:
 			pickle.dump(a21, h)
 
+		"""
 		for k,v in test_perf.items():
 			if k!= 'threshold':
 				print(k, v)
@@ -142,6 +148,7 @@ def main():
 				pickle.dump(test_perf['entropy'], ent_file)
 
 		#print_performance_table({k: v for k, v in test_perf.items() if k != 'threshold'})
+		"""
 
 
 if __name__ == "__main__":

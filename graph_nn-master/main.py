@@ -52,6 +52,9 @@ parser.add_argument('-v', '--visualize', action='store_true', default=False,
                     help='only for unet: save some adjacency matrices and other data as images')
 parser.add_argument('-c', '--use_cont_node_attr', action='store_true', default=False,
                     help='use continuous node attributes in addition to discrete ones')
+parser.add_argument('--coattn_node_update', type=str, default='res',
+                choices = ['res', 'dense'],
+                help='update_fn for x1, inner msg and outer msg')
 
 args = parser.parse_args()
 args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -175,7 +178,7 @@ else:
 acc_folds = []
 
 for fold_id in range(n_folds):
-
+    torch.cuda.empty_cache()
     loaders = []
     for split in ['train', 'test']:
         if args.torch_geom:
@@ -185,11 +188,14 @@ for fold_id in range(n_folds):
                               datareader=datareader,
                               split=split)
 
+        drop_last = split.find('train') >= 0 #true for Train
+
         loader = DataLoader(gdata,
                             batch_size=args.batch_size,
                             shuffle=split.find('train') >= 0,
                             num_workers=args.threads,
-                            collate_fn=collate_batch)
+                            collate_fn=collate_batch,
+                            drop_last=drop_last)
         loaders.append(loader)
 
     print('\nFOLD {}/{}, train {}, test {}'.format(fold_id + 1, n_folds, len(loaders[0].dataset), len(loaders[1].dataset)))
@@ -233,8 +239,8 @@ for fold_id in range(n_folds):
             in_features=loaders[0].dataset.num_features,
             out_features=1 if is_regression else loaders[0].dataset.num_classes,
             hidden_dim=args.filters[0],
-
             n_prop_step=args.n_prop_step,
+            update_method = args.coattn_node_update
             ).to(args.device)
     else:
         raise NotImplementedError(args.model)

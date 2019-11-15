@@ -333,18 +333,19 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			mol_representation['bond_seg_i'] = bond_seg_i
 			mol_representation['bond_idx_j'] = bond_idx_j
 
-			return mol_idx, mol_representation, labels
+			return mol_idx, mol_representation, labels, smiles
 
 	# # Write to jsonl file
 	files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
-	with open(dir_path + 'drug.feat.self_loop.idx.jsonl', 'w') as f:
-		with open(dir_path + 'drug.labels.jsonl', 'w')  as g:
-			for file in files:
-				if ".xyz" in file:
-					print(file)
-					mol_idx, mol_representation, labels = xyz_graph_reader(os.path.join(dir_path, file))
-					f.write('{}\t{}\n'.format(mol_idx, json.dumps(mol_representation)))
-					g.write('{}\t{}\n'.format(mol_idx, json.dumps(labels)))
+	with open(dir_path + 'viz_drug.feat.self_loop.idx.jsonl', 'w') as f:
+		with open(dir_path + 'viz_drug.labels.jsonl', 'w')  as g:
+			with open(dir_path + 'viz_smiles.jsonl', 'w') as h:
+				for file in files:
+					if ".xyz" in file and file in ["dsgdb9nsd_047721.xyz","dsgdb9nsd_040834.xyz"]:
+						mol_idx, mol_representation, labels, smiles = xyz_graph_reader(os.path.join(dir_path, file))
+						f.write('{}\t{}\n'.format(mol_idx, json.dumps(mol_representation)))
+						g.write('{}\t{}\n'.format(mol_idx, json.dumps(labels)))
+						h.write('{}\t{}\t{}\n'.format(file, mol_idx, json.dumps(smiles)))
 
 
 def main():

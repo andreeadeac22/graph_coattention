@@ -62,11 +62,11 @@ class CoAttention(nn.Module):
 		e12 = torch.bmm(h1, torch.transpose(h2, -1, -2))
 		e21 = torch.bmm(h2, torch.transpose(h1, -1, -2))
 
-		#a12 = self.softmax(e12 + (masks2.unsqueeze(1) - 1.0) * 1e9)
-		#a21 = self.softmax(e21 + (masks1.unsqueeze(1) - 1.0) * 1e9)
+		a12 = self.softmax(e12 + (masks2.unsqueeze(1) - 1.0) * 1e9)
+		a21 = self.softmax(e21 + (masks1.unsqueeze(1) - 1.0) * 1e9)
 
-		a12 = torch.ones_like(e12) * masks2.unsqueeze(1)
-		a21 = torch.ones_like(e21) * masks1.unsqueeze(1)
+		#a12 = torch.ones_like(e12) * masks2.unsqueeze(1)
+		#a21 = torch.ones_like(e21) * masks1.unsqueeze(1)
 
 		n12 = torch.bmm(a12, self.val_proj(x2))
 		n21 = torch.bmm(a21, self.val_proj(x1))
@@ -84,7 +84,7 @@ class CoAttention(nn.Module):
 		msg2 = self.out_proj(n21)
 
 		#Check if 1 -> 1 and 2 -> 2.
-		return msg1, msg2
+		return msg1, msg2, a12, a21
 
 
 class MessagePassing(nn.Module):
@@ -102,9 +102,9 @@ class MessagePassing(nn.Module):
 		A_hat = A
 		I = torch.eye(N).unsqueeze(0).to(cuda_device)
 		A_hat = A + I
-		D_hat = (torch.sum(A_hat, 1) + 1e-5) ** (-0.5)
-		L = D_hat.view(batch, N, 1) * A_hat * D_hat.view(batch, 1, N)
-		return L
+		#D_hat = (torch.sum(A_hat, 1) + 1e-5) ** (-0.5)
+		#L = D_hat.view(batch, N, 1) * A_hat * D_hat.view(batch, 1, N)
+		return A_hat
 
 	def forward(self, x, A, mask):
 		# print('in', x.shape, torch.sum(torch.abs(torch.sum(x, 2)) > 0))
@@ -133,30 +133,26 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 
 		self.n_prop_step = n_prop_step
 
-		if update_method == 'res':
-			x_d_node = lambda step_i: 1
-			self.update_fn = lambda x, y, z: x + y + z
-		elif update_method == 'den':
-			x_d_node = lambda step_i: 1 + 2 * step_i
-			self.update_fn = lambda x, y, z: torch.cat([x, y, z], -1)
-		else:
-			raise NotImplementedError
+		self.update_method = update_method
 
 		self.mps = nn.ModuleList([
 			MessagePassing(
-				node_in_feat=hidden_dim * x_d_node(step_i),
+				node_in_feat=hidden_dim,
 				node_out_feat=hidden_dim, dropout=dropout)
 			for step_i in range(n_prop_step)])
 
 		self.coats = nn.ModuleList([
 			CoAttention(
-				node_in_feat=hidden_dim * x_d_node(step_i),
+				node_in_feat=hidden_dim,
 				node_out_feat=hidden_dim, n_head=n_head, dropout=dropout)
 			for step_i in range(n_prop_step)])
 
 		self.pre_readout_proj = nn.Sequential(
-			nn.Linear(hidden_dim * x_d_node(n_prop_step), hidden_dim),
+			nn.Linear(hidden_dim, hidden_dim),
 			nn.LeakyReLU())
+
+		self.fc = nn.Linear(3*hidden_dim, hidden_dim)
+
 
 	def forward(
 			self,
@@ -168,13 +164,17 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			#	entropies.append([])
 			inner_msg1 = self.mps[step_i](x1, A1, masks1)
 			inner_msg2 = self.mps[step_i](x2, A2, masks2)
-			outer_msg1, outer_msg2 = self.coats[step_i](
-				x1, masks1,
-				x2, masks2, [])
+			#outer_msg1, outer_msg2 = self.coats[step_i](
+			#	x1, masks1,
+			#	x2, masks2, [])
 				# node2, out_seg_i2, out_idx_j2, entropies[step_i])
 
-			x1 = x1 + inner_msg1 + outer_msg1
-			x2 = x2 + inner_msg2 + outer_msg2
+			if self.update_method == "res":
+				x1 = x1 + inner_msg1 #+ outer_msg1
+				x2 = x2 + inner_msg2 #+ outer_msg2
+			else:
+				x1 = self.fc(torch.cat([x1, inner_msg1, outer_msg1], -1))
+				x2 = self.fc(torch.cat([x2, inner_msg2, outer_msg2], -1))
 
 		g1_vec = self.readout(x1, masks1)
 		g2_vec = self.readout(x2, masks2)

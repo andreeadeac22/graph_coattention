@@ -13,6 +13,7 @@ from tqdm import tqdm
 def read_graph_structure(drug_feat_idx_jsonl):
 	with open(drug_feat_idx_jsonl) as f:
 		drugs = [l.split('\t') for l in f]
+		print("drugs ", drugs)
 		drugs = {idx: json.loads(graph) for idx, graph in tqdm(drugs)}
 	return drugs
 
@@ -122,7 +123,7 @@ def split_qm9_cv(graph_dict, labels_dict, opt):
 
 	test_graph_dict = {}
 	test_labels_dict = {}
-	while len(test_graph_dict) < 10000:
+	while len(test_graph_dict) < 10000 and len(test_graph_dict) < data_size:
 		x = random.randint(1,data_size)
 		if x not in test_graph_dict.keys():
 			test_graph_dict[x] = graph_dict[str(x)]
@@ -148,16 +149,16 @@ def split_qm9_cv(graph_dict, labels_dict, opt):
 		f.write(pickle.dumps(train_graph_dict))
 	with open(opt.path + "folds/" + "train_labels.npy", 'wb') as f:
 		f.write(pickle.dumps(train_labels_dict))
+		
+	with open(opt.path + "folds/" + "valid_graphs.npy", 'wb') as f:
+		f.write(pickle.dumps(valid_graph_dict))
+	with open(opt.path + "folds/" + "valid_labels.npy", 'wb') as f:
+		f.write(pickle.dumps(valid_labels_dict))
 
 	with open(opt.path + "folds/" + "test_graphs.npy", 'wb') as f:
 		f.write(pickle.dumps(test_graph_dict))
 	with open(opt.path + "folds/" + "test_labels.npy", 'wb') as f:
 		f.write(pickle.dumps(test_labels_dict))
-
-	with open(opt.path + "folds/" + "valid_graphs.npy", 'wb') as f:
-		f.write(pickle.dumps(valid_graph_dict))
-	with open(opt.path + "folds/" + "valid_labels.npy", 'wb') as f:
-		f.write(pickle.dumps(valid_labels_dict))
 
 
 def prepare_qm9_cv(opt):
@@ -192,13 +193,13 @@ def main():
 						help="path to store the data (default ./data/)")
 
 	parser.add_argument('--ddi_data', default='bio-decagon-combo.csv')
-	parser.add_argument('--qm9_labels', default='drug.labels.jsonl')
+	parser.add_argument('--qm9_labels', default='viz_drug.labels.jsonl')
 
 	parser.add_argument('--decagon_graph_data', default="drug.feat.wo_h.self_loop.idx.jsonl",
 	                    help="Graph features input file name, "
 						"e.g. drug.feat.wo_h.self_loop.idx.jsonl")
 
-	parser.add_argument('--qm9_graph_data', default="drug.feat.self_loop.idx.jsonl",
+	parser.add_argument('--qm9_graph_data', default="viz_drug.feat.self_loop.idx.jsonl",
 	                    help="Graph features input file name, "
 	                         "e.g. drug.feat.self_loop.idx.jsonl")
 

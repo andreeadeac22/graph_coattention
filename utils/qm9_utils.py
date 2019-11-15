@@ -261,7 +261,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			ents = []
 
 			# forward
-			pred1, pred2 = model(*batch, entropies=ents)
+			pred1, pred2, a12, a21 = model(*batch, entropies=ents)
 
 			pred1 = torch.reshape(pred1,
 						(-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
@@ -325,6 +325,6 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	}
 
 	used_time = (time.time() - start) / 60
-	return performance, used_time
+	return performance, used_time, a12, a21
 
 

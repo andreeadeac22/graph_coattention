@@ -70,6 +70,9 @@ class CoAttention(nn.Module):
 
 	def forward(self, node1, seg_i1, idx_j1, node2, seg_i2, idx_j2, entropy=[]):
 
+		print("node1.shape ", node1.shape)
+		print("node2.shape ", node2.shape)
+
 		d_h = node1.size(1)
 
 		n_seg1 = node1.size(0)
@@ -122,8 +125,13 @@ class CoAttention(nn.Module):
 		node2_edge = self.attn_drop(segment_softmax(
 			translation, n_seg2, seg_i2, idx_j2, self.temperature))
 
+		print("before node1 shape", node1_edge.shape)
+
 		node1_edge = node1_edge.view(-1, 1)
 		node2_edge = node2_edge.view(-1, 1)
+
+		print("after node1 shape", node1_edge.shape)
+
 
 		# Weighted sum
 		msg1 = node1.new_zeros((n_seg1, d_h)).index_add(0, seg_i1, node1_edge * node1_nbr)
@@ -142,7 +150,7 @@ class CoAttention(nn.Module):
 		msg1 = self.out_proj(msg1)
 		msg2 = self.out_proj(msg2)
 
-		return msg1, msg2
+		return msg1, msg2, node1_edge, node2_edge
 
 
 class MessagePassing(nn.Module):
@@ -226,7 +234,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 			#	entropies.append([])
 			inner_msg1 = self.mps[step_i](node1, edge1, inn_seg_i1, inn_idx_j1)
 			inner_msg2 = self.mps[step_i](node2, edge2, inn_seg_i2, inn_idx_j2)
-			outer_msg1, outer_msg2 = self.coats[step_i](
+			outer_msg1, outer_msg2, attn1, attn2 = self.coats[step_i](
 				node1, out_seg_i1, out_idx_j1,
 				node2, out_seg_i2, out_idx_j2, [])
 				# node2, out_seg_i2, out_idx_j2, entropies[step_i])
@@ -237,7 +245,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 		g1_vec = self.readout(node1, seg_g1)
 		g2_vec = self.readout(node2, seg_g2)
 
-		return g1_vec, g2_vec
+		return g1_vec, g2_vec, attn1, attn2
 
 	def readout(self, node, seg_g):
 		sz_b = seg_g.max() + 1

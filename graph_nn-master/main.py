@@ -15,6 +15,43 @@ from torch.utils.data import DataLoader
 from utils import split_ids
 from graph_coattn import GraphGraphInteractionNetwork
 
+from graphconv_layers import *
+
+
+def collate_batch(batch):
+    '''
+    Creates a batch of same size graphs by zero-padding node features and adjacency matrices up to
+    the maximum number of nodes in the CURRENT batch rather than in the entire dataset.
+    Graphs in the batches are usually much smaller than the largest graph in the dataset, so this method is fast.
+    :param batch: batch in the PyTorch Geometric format or [node_features*batch_size, A*batch_size, label*batch_size]
+    :return: [node_features, A, graph_support, N_nodes, label]
+    '''
+    B = len(batch)
+    if args.torch_geom:
+        N_nodes = [len(batch[b].x) for b in range(B)]
+        C = batch[0].x.shape[1]
+    else:
+        N_nodes = [len(batch[b][1]) for b in range(B)]
+        C = batch[0][0].shape[1]
+    N_nodes_max = int(np.max(N_nodes))
+
+    graph_support = torch.zeros(B, N_nodes_max)
+    A = torch.zeros(B, N_nodes_max, N_nodes_max)
+    x = torch.zeros(B, N_nodes_max, C)
+    for b in range(B):
+        if args.torch_geom:
+            x[b, :N_nodes[b]] = batch[b].x
+            A[b].index_put_((batch[b].edge_index[0], batch[b].edge_index[1]), torch.Tensor([1]))
+        else:
+            x[b, :N_nodes[b]] = batch[b][0]
+            A[b, :N_nodes[b], :N_nodes[b]] = batch[b][1]
+        graph_support[b][:N_nodes[b]] = 1  # mask with values of 0 for dummy (zero padded) nodes, otherwise 1
+
+    N_nodes = torch.from_numpy(np.array(N_nodes)).long()
+    labels = torch.from_numpy(np.array([batch[b].y if args.torch_geom else batch[b][2] for b in range(B)])).long()
+    return [x, A, graph_support, N_nodes, labels]
+
+
 print('using torch', torch.__version__)
 
 # Experiment parameters
@@ -80,43 +117,6 @@ rnd_state = np.random.RandomState(args.seed)
 
 if not args.torch_geom:
     from CustomData import GraphData, DataReader
-
-from graphconv_layers import *
-
-
-def collate_batch(batch):
-    '''
-    Creates a batch of same size graphs by zero-padding node features and adjacency matrices up to
-    the maximum number of nodes in the CURRENT batch rather than in the entire dataset.
-    Graphs in the batches are usually much smaller than the largest graph in the dataset, so this method is fast.
-    :param batch: batch in the PyTorch Geometric format or [node_features*batch_size, A*batch_size, label*batch_size]
-    :return: [node_features, A, graph_support, N_nodes, label]
-    '''
-    B = len(batch)
-    if args.torch_geom:
-        N_nodes = [len(batch[b].x) for b in range(B)]
-        C = batch[0].x.shape[1]
-    else:
-        N_nodes = [len(batch[b][1]) for b in range(B)]
-        C = batch[0][0].shape[1]
-    N_nodes_max = int(np.max(N_nodes))
-
-    graph_support = torch.zeros(B, N_nodes_max)
-    A = torch.zeros(B, N_nodes_max, N_nodes_max)
-    x = torch.zeros(B, N_nodes_max, C)
-    for b in range(B):
-        if args.torch_geom:
-            x[b, :N_nodes[b]] = batch[b].x
-            A[b].index_put_((batch[b].edge_index[0], batch[b].edge_index[1]), torch.Tensor([1]))
-        else:
-            x[b, :N_nodes[b]] = batch[b][0]
-            A[b, :N_nodes[b], :N_nodes[b]] = batch[b][1]
-        graph_support[b][:N_nodes[b]] = 1  # mask with values of 0 for dummy (zero padded) nodes, otherwise 1
-
-    N_nodes = torch.from_numpy(np.array(N_nodes)).long()
-    labels = torch.from_numpy(np.array([batch[b].y if args.torch_geom else batch[b][2] for b in range(B)])).long()
-    return [x, A, graph_support, N_nodes, labels]
-
 
 is_regression = args.dataset in ['COLORS-3', 'TRIANGLES']  # other datasets can be for the regression task (see their README.txt)
 transforms = []  # for PyTorch Geometric

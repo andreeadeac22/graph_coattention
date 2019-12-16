@@ -84,7 +84,7 @@ class CoAttention(nn.Module):
 		msg2 = self.out_proj(n21)
 
 		#Check if 1 -> 1 and 2 -> 2.
-		return msg1, msg2, a12, a21
+		return msg1, msg2
 
 
 class MessagePassing(nn.Module):
@@ -176,6 +176,18 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 				x1 = self.fc(torch.cat([x1, inner_msg1, outer_msg1], -1))
 				x2 = self.fc(torch.cat([x2, inner_msg2, outer_msg2], -1))
 
+			if step_i == self.n_prop_step - 1:
+				outer_msg1, outer_msg2 = self.coats[step_i](
+					x1, masks1,
+					x2, masks2, [])
+				# node2, out_seg_i2, out_idx_j2, entropies[step_i])
+				if self.update_method == "res":
+					x1 = x1 + outer_msg1 #+ outer_msg1
+					x2 = x2 + outer_msg2 #+ outer_msg2
+				else:
+					x1 = self.fc(torch.cat([x1, inner_msg1, outer_msg1], -1))
+					x2 = self.fc(torch.cat([x2, inner_msg2, outer_msg2], -1))
+
 		g1_vec = self.readout(x1, masks1)
 		g2_vec = self.readout(x2, masks2)
 
@@ -187,7 +199,7 @@ class CoAttentionMessagePassingNetwork(nn.Module):
 		if len(mask.shape) == 2:
 			mask = mask.unsqueeze(2)
 		node = node * mask
-		mask = mask.squeeze()
+		mask = mask.squeeze(2)
 		readout = torch.mean(node, 1) / torch.mean(mask, 1, keepdim=True)
 		return readout
 

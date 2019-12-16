@@ -3,8 +3,10 @@ import torch.utils.data
 
 
 def qm9_collate_batch(batch):
-	#print(batch)
+	print(batch)
 	drug1, drug2, label1, label2 = list(zip(*batch))
+	print("drug1 ", drug1)
+	print("drug2 ", drug1)
 
 	ddi_idxs1, ddi_idxs2 = collate_drug_pairs(drug1, drug2)
 	drug1 = (*collate_drugs(drug1), *ddi_idxs1)
@@ -65,6 +67,7 @@ class QM9Dataset(torch.utils.data.Dataset):
 		assert pairs_dataset
 		self.graph_dict = graph_dict
 		self.graph_idx_list = list(graph_dict.keys())
+		print("graph idx list ", self.graph_idx_list)
 		self.feeding_insts = pairs_dataset
 
 	def prepare_feeding_insts(self):
@@ -75,6 +78,7 @@ class QM9Dataset(torch.utils.data.Dataset):
 		return len(self.feeding_insts)
 
 	def __getitem__(self, idx):
+		print("idx ", idx)
 		instance = self.feeding_insts[idx]
 		# drug lookup
 		instance = self.drug_structure_lookup(instance)
@@ -84,6 +88,9 @@ class QM9Dataset(torch.utils.data.Dataset):
 	def drug_structure_lookup(self, instance):
 		drug_idx1, drug_idx2, label1, label2 = instance
 
-		drug1 = self.graph_dict[str(drug_idx1)]
-		drug2 = self.graph_dict[str(drug_idx2)]
+		print("drug_idx1 ", drug_idx1)
+		print("self.graph_dict ", self.graph_dict)
+
+		drug1 = self.graph_dict[drug_idx1]
+		drug2 = self.graph_dict[drug_idx2]
 		return drug1, drug2, label1, label2

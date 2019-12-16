@@ -64,7 +64,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		bond1 = self.dropout(self.bond_emb(bond_type1))
 		bond2 = self.dropout(self.bond_emb(bond_type2))
 
-		d1_vec, d2_vec = self.encoder(
+		d1_vec, d2_vec, attn1, attn2 = self.encoder(
 			seg_m1, atom1, bond1, inn_seg_i1, inn_idx_j1, out_seg_i1, out_idx_j1,
 			seg_m2, atom2, bond2, inn_seg_i2, inn_idx_j2, out_seg_i2, out_idx_j2,
 						entropies)
@@ -89,7 +89,7 @@ class DrugDrugInteractionNetwork(nn.Module):
 		else:
 			pred1 = self.lbl_predict(d1_vec)
 			pred2 = self.lbl_predict(d2_vec)
-			return pred1, pred2
+			return pred1, pred2, attn1, attn2
 
 
 	def atom_comp(self, atom_feat, atom_idx):

@@ -247,6 +247,9 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			*batch, labels1, labels2 = batch
 
 			batch = [v.to(device) for v in batch]
+
+			print("batch ", batch)
+
 			labels1 = labels1.to(device)
 			labels2 = labels2.to(device)
 
@@ -263,6 +266,8 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 			# forward
 			pred1, pred2, a12, a21 = model(*batch, entropies=ents)
 
+			return pred1, pred2, a12.cpu().detach().numpy(), a21.cpu().detach().numpy()
+	"""
 			pred1 = torch.reshape(pred1,
 						(-1, opt.qm9_pairing_repetitions, opt.qm9_output_feat))
 			labels1 = torch.reshape(labels1,
@@ -326,5 +331,6 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 	used_time = (time.time() - start) / 60
 	return performance, used_time, a12, a21
+	"""
 
 

@@ -43,7 +43,7 @@ def pair_qm9_test(test_graph_dict, train_graph_dict, test_labels_dict, train_lab
 def prepare_qm9_testset_dataloader(opt):
 	test_loader = torch.utils.data.DataLoader(
 		QM9Dataset(
-			graph_dict=opt.graph_dict,
+			graph_dict=opt.test_graph_dict,
 			pairs_dataset=opt.test_dataset),
 		num_workers=2,
 		batch_size=opt.batch_size,
@@ -111,14 +111,14 @@ def main():
 		if not hasattr(test_opt, 'qm9_knn'):
 			test_opt.qm9_knn = False
 
-		test1 = {1: test_opt.test_graph_dict[1]}
-		test2 = {2: test_opt.test_graph_dict[2]}
-
-		print("test_opt.test_labels_dict[1]", test_opt.test_labels_dict[1])
-
 		test_opt.test_dataset = [(1,2,test_opt.test_labels_dict[1], test_opt.test_labels_dict[2])]
 
-		
+		print("test_opt.test_graph_dict[1] ", test_opt.test_graph_dict[1])
+		print("test_opt.test_graph_dict[2] ", test_opt.test_graph_dict[2])
+
+		print("test_opt.test_labels_dict[1]" , test_opt.test_labels_dict[1])
+		print("test_opt.test_labels_dict[2]" , test_opt.test_labels_dict[2])
+
 
 		test_data = prepare_qm9_testset_dataloader(test_opt)
 

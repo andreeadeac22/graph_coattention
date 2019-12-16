@@ -20,3 +20,6 @@ for i in entropy:
 	plt.subplots_adjust(left=0.15)
 	plt.legend()
 	plt.savefig(str(i) + "selfrandompair-hid50-readout200-repetitions3-patience8-batch255-mpnn-cv_1_10.png")
+
+
+

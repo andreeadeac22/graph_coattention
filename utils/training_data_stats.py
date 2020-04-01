@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 
-def get_qm9_stats(device="cpu"):
+def get_qm9_stats(dir_path="data/qm9/dsgdb9nsd/", device="cpu"):
 	"""
 	min
 	[ 0.0000000e+00  6.3099999e+00 -4.2860001e-01 -1.7500000e-01
@@ -25,7 +25,7 @@ def get_qm9_stats(device="cpu"):
 	 2.7926233e+02 3.3273432e-02 4.0096535e+01 4.0096313e+01 4.0096313e+01
 	 4.0097050e+01 4.0638595e+00]
 	"""
-	train_labels_dict = pickle.load(open("data/qm9/dsgdb9nsd/folds/train_labels.npy", "rb"))
+	train_labels_dict = pickle.load(open(dir_path + "folds/train_labels.npy", "rb"))
 	labels = list(train_labels_dict.values())
 
 	labels = torch.Tensor(np.stack(labels))

@@ -164,7 +164,7 @@ def qm9_train_epoch(model, data_train, optimizer, averaged_model, device, opt):
 	all_debug_losses = None
 	print_step = 200 * opt.qm9_pairing_repetitions
 
-	minima, maxima, mean, std, scale = get_qm9_stats(device)
+	minima, maxima, mean, std, scale = get_qm9_stats(dir_path=opt.input_data_path, device=device)
 
 	for batch in tqdm(data_train, mininterval=3, leave=False, desc='  - (Training)   '):
 
@@ -234,7 +234,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 	debug_loss_fn = nn.L1Loss(reduction='none')
 	batch_no = 0
 
-	minima, maxima, mean, std, scale = get_qm9_stats(device)
+	minima, maxima, mean, std, scale = get_qm9_stats(dir_path=opt.input_data_path, device=device)
 
 	all_debug_losses = None
 
@@ -248,7 +248,7 @@ def qm9_valid_epoch(model, data_valid, device, opt, threshold=None):
 
 			batch = [v.to(device) for v in batch]
 
-			print("batch ", batch)
+			#print("batch ", batch)
 
 			labels1 = labels1.to(device)
 			labels2 = labels2.to(device)

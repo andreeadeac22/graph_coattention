@@ -194,7 +194,7 @@ def train(model, datasets, device, opt):
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('dataset', metavar='D', type=str.lower,
-	                    choices=['qm9', 'decagon'],
+	                    choices=['qm9', 'decagon', 'drug_comb'],
 	                    help='Name of dataset to used for training [QM9,DECAGON]')
 
 	# Directory to resume training from

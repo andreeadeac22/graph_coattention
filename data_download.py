@@ -119,13 +119,20 @@ def download_qm9_data(data_dir):
     # dsC7O2H10nsd.xyz.tar.bz2
     download_figshare('3195398', '.tar.bz2', data_dir, 'dsC702H10nsd')
 
+def download_drugcomb_data(data_dir):
+    data_dir = os.path.join(data_dir, 'drug_comb')
+    dds_url = 'http://drugcombdb.denglab.org/download/drugcombs_scored.csv'
+    d_data_url = 'http://drugcombdb.denglab.org/download/drug_chemical_info.csv'
+    wget.download(dds_url, out=data_dir)
+    wget.download(d_data_url, out=data_dir)
+
 
 def main():
     parser = argparse.ArgumentParser(
         description='Download dataset for Graph Co-attention')
     parser.add_argument('datasets', metavar='D', type=str.lower,
-                        nargs='+', choices=['qm9', 'decagon'],
-                        help='Name of dataset to download [QM9,DECAGON]')
+                        nargs='+', choices=['qm9', 'decagon', 'drug_comb'],
+                        help='Name of dataset to download [QM9,DECAGON, DRUG_COMB]')
 
     # I/O
     parser.add_argument('-p', '--path', metavar='dir', type=str, nargs=1,
@@ -147,6 +154,9 @@ def main():
 
     if 'decagon' in args.datasets:
         download_decagon_data(args.path)
+
+    if 'drug_comb' in args.datasets:
+        download_drugcomb_data(args.path)
 
 
 if __name__ == "__main__":

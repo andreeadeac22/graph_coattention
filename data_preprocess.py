@@ -4,6 +4,8 @@
 """
 import argparse
 import json
+
+import pandas as pd
 import networkx as nx
 import numpy as np
 import random
@@ -12,6 +14,7 @@ from rdkit import Chem
 from rdkit.Chem import ChemicalFeatures
 from rdkit import RDConfig
 from utils.file_utils import *
+from utils.functional_utils import get_bond_type_idx, smiles_to_mol
 
 
 def preprocess_decagon(dir_path='./data/'):
@@ -215,14 +218,6 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			"G": g_G,
 			"Cv": g_Cv}, labels
 
-	def get_bond_type_idx(bond_type):
-		# There are 4 types of bonds in QM9
-		# 1 - single, 2 - double, 3 - triple
-		# 4 (originally 2.5) - aromatic
-		# 0 - self
-		if bond_type == 1.5:
-			return 4
-		return int(bond_type)
 
 	# XYZ file reader for QM9 dataset
 	def xyz_graph_reader(graph_file, self_loop = True):
@@ -261,77 +256,8 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 			smiles = smiles.split()
 			smiles = smiles[0]
 
-			m = Chem.MolFromSmiles(smiles)
-			m = Chem.AddHs(m)
-			assert n_atom == m.GetNumAtoms()
-
-			fdef_name = os.path.join(RDConfig.RDDataDir, 'BaseFeatures.fdef')
-			factory = ChemicalFeatures.BuildFeatureFactory(fdef_name)
-			feats = factory.GetFeaturesForMol(m)
-
-			atom_type = []
-			atom_feat = []
-			atom_feat_dicts = []
-
-			bond_type = []
-			bond_seg_i = []
-			bond_idx_j = []
-			# distances between atoms
-			bond_dist = []
-
-			# Create nodes
-			for i in range(0, m.GetNumAtoms()):
-				atom_i = m.GetAtomWithIdx(i)
-
-				atom_type += [atom_i.GetAtomicNum()]
-				atom_feat += [(atom_i.GetAtomicNum(), atom_i.GetTotalNumHs(),atom_i.GetFormalCharge())]
-				atom_feat_dicts += [{
-					'number' : atom_i.GetAtomicNum(),
-					'n_hydro': atom_i.GetTotalNumHs(),
-					'charge': atom_i.GetFormalCharge(),
-					'coord': np.array(atom_properties[i][1:4]).astype(np.float)}]
-
-				# TODO: should use the other features too?
-				# For example, coordinates, hybridization, aromatic
-				#g.add_node(i, a_type=atom_i.GetSymbol(), a_num=atom_i.GetAtomicNum(), acceptor=0, donor=0,
-				#		   aromatic=atom_i.GetIsAromatic(), hybridization=atom_i.GetHybridization(),
-				#		   num_h=atom_i.GetTotalNumHs(), coord=np.array(atom_properties[i][1:4]).astype(np.float),
-				#		   pc=float(atom_properties[i][4]))
-
-				"""
-				for i in range(0, len(feats)):
-					if feats[i].GetFamily() == 'Donor':
-						node_list = feats[i].GetAtomIds()
-						for i in node_list:
-							g.node[i]['donor'] = 1
-					elif feats[i].GetFamily() == 'Acceptor':
-						node_list = feats[i].GetAtomIds()
-						for i in node_list:
-							g.node[i]['acceptor'] = 1
-				"""
-
-			# Read Edges
-			for i in range(0, m.GetNumAtoms()):
-				for j in range(0, m.GetNumAtoms()):
-					e_ij = m.GetBondBetweenAtoms(i, j)
-					if e_ij is not None:
-						bond_type += [get_bond_type_idx(e_ij.GetBondTypeAsDouble())]
-						bond_seg_i += [i]
-						bond_idx_j += [j]
-						bond_dist += [np.linalg.norm(atom_feat_dicts[i]['coord'] - atom_feat_dicts[j]['coord'])]
-				if self_loop:
-					#add self edge as type 0
-					bond_type += [0]
-					bond_seg_i += [i]
-					bond_idx_j += [i]
-					bond_dist += [0.]
-
-			mol_representation['n_atom'] = n_atom
-			mol_representation['atom_type'] = atom_type
-			mol_representation['atom_feat'] = atom_feat
-			mol_representation['bond_type'] = bond_type
-			mol_representation['bond_seg_i'] = bond_seg_i
-			mol_representation['bond_idx_j'] = bond_idx_j
+			mol_representation = smiles_to_mol(smiles=smiles, self_loop=self_loop,
+											   coords_flag=True, atom_properties=atom_properties)
 
 			return mol_idx, mol_representation, labels, smiles
 
@@ -341,17 +267,57 @@ def preprocess_qm9(dir_path='./data/qm9/dsgdb9nsd'):
 		with open(dir_path + 'viz_drug.labels.jsonl', 'w')  as g:
 			with open(dir_path + 'viz_smiles.jsonl', 'w') as h:
 				for file in files:
-					if ".xyz" in file and file in ["dsgdb9nsd_047721.xyz","dsgdb9nsd_040834.xyz"]:
+					#if ".xyz" in file and file in ["dsgdb9nsd_047721.xyz","dsgdb9nsd_040834.xyz"]: #debugging
+					if ".xyz" in file:
 						mol_idx, mol_representation, labels, smiles = xyz_graph_reader(os.path.join(dir_path, file))
 						f.write('{}\t{}\n'.format(mol_idx, json.dumps(mol_representation)))
 						g.write('{}\t{}\n'.format(mol_idx, json.dumps(labels)))
 						h.write('{}\t{}\t{}\n'.format(file, mol_idx, json.dumps(smiles)))
 
 
+def preprocess_drug_comb(dir_path='./drug_comb'):
+	drug_data = pd.read_csv(dir_path + "drug_chemical_info.csv")
+	dds = pd.read_csv(dir_path + "drugcombs_scored.csv")
+	dds.drop(columns=['ID'], inplace=True)
+	dds.reset_index(drop=True, inplace=True)
+
+	drug_name_dict = drug_data.set_index('drugName').T.to_dict('dict')
+
+	#for row in dds:
+	#	print(row)
+	#	print(drug_name_dict[row['Drug1']])
+	#	break
+	print(dds.columns)
+	print(dds['Drug1'])
+
+	join_smiles1 = dds.set_index('Drug1').join(drug_data.set_index('drugName'))
+	join_smiles1.index.name = 'Drug1'
+	join_smiles1.reset_index(inplace=True)
+	join_smiles1.rename(columns={"cIds": "cIds1",
+								 "drugNameOfficial": "drugNameOfficial1",
+								 "molecularWeight": "molecularWeight1",
+								 "smilesString":"smilesString1",
+								 "originImgUrl": "originImgUrl1"},
+						inplace=True)
+	join_smiles1.to_csv(open(dir_path + "jon1.csv", "w"))
+
+
+	join_smiles2 = join_smiles1.set_index('Drug2').join(drug_data.set_index('drugName'))
+	join_smiles2.index.name = 'Drug2'
+	join_smiles2.rename(columns={"cIds": "cIds2",
+								 "drugNameOfficial": "drugNameOfficial2",
+								 "molecularWeight": "molecularWeight2",
+								 "smilesString":"smilesString2",
+								 "originImgUrl": "originImgUrl2"},
+						inplace=True)
+	join_smiles2.to_csv(open(dir_path + "smilescombs_scored.csv", "w"))
+
+
 def main():
 	parser = argparse.ArgumentParser(description='Download dataset for Graph Co-attention')
-	parser.add_argument('datasets', metavar='D', type=str.lower, nargs='+', choices=['qm9', 'decagon'],
-						help='Name of dataset to download [QM9,DECAGON]')
+	parser.add_argument('datasets', metavar='D', type=str.lower, nargs='+',
+						choices=['qm9', 'decagon', 'drug_comb'],
+						help='Name of dataset to download [QM9,DECAGON, DRUG_COMB]')
 
 	# I/O
 	parser.add_argument('-p', '--path', metavar='dir', type=str, nargs=1,
@@ -370,9 +336,10 @@ def main():
 
 	if 'qm9' in args.datasets:
 		preprocess_qm9(args.path + 'qm9/' + 'dsgdb9nsd/')
-
-	if 'decagon' in args.datasets:
+	elif 'decagon' in args.datasets:
 		preprocess_decagon(args.path + 'decagon/')
+	elif 'drug_comb' in args.datasets:
+		preprocess_drug_comb(args.path + 'drug_comb/')
 
 
 if __name__ == "__main__":
